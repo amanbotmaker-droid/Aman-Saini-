@@ -1,1 +1,220 @@
+        document.getElementById('admin-broadcast-msg').value = '';
+    } catch(e) { alert(e.message || "Failed to send broadcast"); }
+    loader(false);
+}
 
+async function loadAdminPendingReqs(type) {
+    adminReqType = type;
+    document.getElementById('admin-req-title').innerText = type === 'DEP' ? "Deposit Requests" : "Withdraw Requests";
+    const list = document.getElementById('admin-req-list');
+    list.innerHTML = `<p class="text-center text-xs font-bold text-slate-600 py-10 uppercase tracking-widest animate-pulse">Loading...</p>`;
+    
+    try {
+        const data = await adminApiCall('ADMIN_PENDING_REQ');
+        const reqs = type === 'DEP' ? data.deposits : data.withdraws;
+        
+        if(!reqs || reqs.length === 0) {
+            list.innerHTML = `<p class="text-center text-xs font-bold text-slate-600 py-10 uppercase tracking-widest">No pending requests</p>`;
+            return;
+        }
+
+        let html = '';
+        reqs.forEach(r => {
+            let ref = type === 'DEP' ? `UTR: ${r.utr}` : `UPI: ${r.upi}`;
+            let refBg = 'bg-white/50 border-sky-200 text-slate-700';
+            html += `
+            <div class="glass-light p-5 glow-hover">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-black text-slate-900 drop-shadow-sm">${r.userPhone}</span>
+                    <span class="text-[10px] font-bold text-slate-600">${r.date.split(',')[0]}</span>
+                </div>
+                <div class="flex justify-between items-end mb-4">
+                    <h3 class="text-xl font-black ${type==='DEP'?'text-emerald-600':'text-red-600'} drop-shadow-sm">â‚¹${r.amount}</h3>
+                    <p class="text-[10px] font-mono px-2 py-1 rounded border ${refBg}">${ref}</p>
+                </div>
+                <input type="text" id="rmk-${r.id}" placeholder="Remarks (Optional)" class="sky-input !bg-white/50 !p-2 !text-xs mb-3">
+                <div class="flex gap-2">
+                    <button onclick="adminProcessReq('${type}', '${r.id}', '${r.userPhone}', 'APPROVE')" class="flex-1 sky-btn tap !border-emerald-400 !text-emerald-600 !shadow-[0_0_15px_rgba(16,185,129,0.4)] !py-2 text-[10px]"><i class="fa-solid fa-check"></i> Approve</button>
+                    <button onclick="adminProcessReq('${type}', '${r.id}', '${r.userPhone}', 'REJECT')" class="flex-1 sky-btn tap !border-red-400 !text-red-600 !shadow-[0_0_15px_rgba(239,68,68,0.4)] !py-2 text-[10px]"><i class="fa-solid fa-xmark"></i> Reject</button>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+    } catch(e) { alert(e.message || "Failed to load requests"); }
+}
+
+async function adminProcessReq(type, id, phone, action) {
+    const remark = document.getElementById(`rmk-${id}`).value.trim() || "Processed via Web Admin";
+    if(!confirm(`Are you sure you want to ${action} this request?`)) return;
+    
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_PROCESS_REQ', { type, id, phone, action, remark });
+        loadAdminPendingReqs(adminReqType);
+    } catch(e) { alert(e.message || "Action failed"); }
+    loader(false);
+}
+
+async function processAdminServiceFee() {
+    const amt = Number(document.getElementById('admin-sf-amt').value);
+    const remark = document.getElementById('admin-sf-remark').value.trim() || "None";
+    if(amt <= 0) return alert("Enter valid amount");
+    if(!confirm(`Deduct â‚¹${amt} from EVERY user's wallet? This cannot be undone.`)) return;
+    
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_SERVICE_FEE', { amount: amt, remark });
+        alert("Service fee deducted from all users!");
+        document.getElementById('admin-sf-amt').value = '';
+    } catch(e) { alert(e.message || "Failed to process fee"); }
+    loader(false);
+}
+
+async function loadAdminLogs() {
+    const list = document.getElementById('admin-logs-list');
+    list.innerHTML = `<p class="text-center text-xs font-bold text-slate-600 py-10 uppercase tracking-widest animate-pulse">Loading...</p>`;
+    try {
+        const logs = await adminApiCall('ADMIN_LOGS');
+        if(!logs || logs.length === 0) {
+            list.innerHTML = `<p class="text-center text-xs font-bold text-slate-600 py-10 uppercase tracking-widest">No logs found</p>`;
+            return;
+        }
+        
+        let html = '';
+        logs.forEach(l => {
+            let color = l.type === 'DEP' ? 'text-emerald-600' : 'text-red-600';
+            let statusClr = l.status === 'SUCCESS' ? 'text-emerald-600' : 'text-red-600';
+            let bgClr = l.status === 'SUCCESS' ? 'bg-white/50 border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-white/50 border-red-300 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+            
+            html += `
+            <div class="glass-light p-4 glow-hover">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-[10px] font-black ${color} uppercase tracking-widest">${l.type} - ${l.userPhone}</span>
+                    <span class="text-[9px] font-bold text-slate-600">${l.date}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-black text-slate-900 drop-shadow-sm">â‚¹${l.amount}</h3>
+                    <span class="text-[9px] font-black ${statusClr} uppercase tracking-widest ${bgClr} px-2 py-1 rounded border">${l.status}</span>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+    } catch(e) { alert(e.message || "Failed to load logs"); }
+}
+
+async function processAdminGiftCode() {
+    const amt = Number(document.getElementById('admin-gc-amt').value);
+    const users = Number(document.getElementById('admin-gc-users').value);
+    const remark = document.getElementById('admin-gc-remark').value.trim() || "Admin Gift";
+    
+    if(amt<=0 || users<=0) return alert("Enter valid details");
+    loader(true);
+    try {
+        const code = await adminApiCall('ADMIN_CREATE_GIFT', { amount: amt, usersCount: users, remark });
+        document.getElementById('admin-gc-result').classList.remove('hidden');
+        document.getElementById('admin-gc-code-text').innerText = code;
+    } catch(e) { alert(e.message || "Failed to create code"); }
+    loader(false);
+}
+
+async function updateAdminPayment() {
+    const upi = document.getElementById('admin-pay-upi').value.trim();
+    if(!upi) return alert("Enter valid UPI");
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_UPDATE_SETTINGS', { action: 'PAYMENT', upiId: upi });
+        alert("UPI Updated successfully");
+    } catch(e) { alert(e.message || "Failed to update UPI"); }
+    loader(false);
+}
+
+async function toggleAdminMaintenance() {
+    if(!confirm("Toggle Maintenance Mode for website?")) return;
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_UPDATE_SETTINGS', { action: 'MAINTENANCE' });
+        alert("Maintenance mode toggled!");
+    } catch(e) { alert(e.message || "Failed to toggle maintenance"); }
+    loader(false);
+}
+
+async function updateAdminCredentials() {
+    const newUser = document.getElementById('admin-new-user').value.trim();
+    const newPass = document.getElementById('admin-new-pass').value.trim();
+    
+    if(!newUser || !newPass) return alert("Enter both fields!");
+    if(!confirm("Are you sure you want to change the Admin Credentials? You will need to login again.")) return;
+    
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_UPDATE_CREDENTIALS', { newUser, newPass });
+        alert("Admin Credentials Updated! Please login again.");
+        adminCredentials = null;
+        document.getElementById('admin-new-user').value = '';
+        document.getElementById('admin-new-pass').value = '';
+        document.getElementById('admin-user-input').value = '';
+        document.getElementById('admin-pass-input').value = '';
+        showScreen('admin-login-screen');
+    } catch(e) { alert(e.message || "Failed to update credentials"); }
+    loader(false);
+}
+
+async function adjustAdminStats(type) {
+    const elId = type === 'DEP' ? 'admin-stat-add-dep' : 'admin-stat-add-wth';
+    const val = Number(document.getElementById(elId).value);
+    
+    if(val === 0) return alert("Enter a valid amount to adjust (can be negative)");
+    if(!confirm(`Are you sure you want to add â‚¹${val} to the Total ${type === 'DEP' ? 'Deposit' : 'Withdrawal'} amount?`)) return;
+    
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_ADJUST_STATS', { type, value: val });
+        alert("Stats adjusted successfully!");
+        document.getElementById(elId).value = '';
+        loadAdminDashboard(); 
+    } catch(e) { alert(e.message || "Failed to adjust stats"); }
+    loader(false);
+}
+
+function openAdminLimits() {
+    document.getElementById('admin-min-dep-input').value = window.appConfig?.minDeposit || 10;
+    document.getElementById('admin-min-wth-input').value = window.appConfig?.minWithdraw || 20;
+    showScreen('admin-limits-screen');
+}
+
+async function saveAdminLimits() {
+    const minDep = Number(document.getElementById('admin-min-dep-input').value);
+    const minWth = Number(document.getElementById('admin-min-wth-input').value);
+
+    if(minDep <= 0 || minWth <= 0) return alert("Limits must be greater than 0");
+
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_UPDATE_LIMITS', { minDeposit: minDep, minWithdraw: minWth });
+        alert("Limits successfully updated! Users will see the new limits immediately.");
+        showScreen('admin-dashboard-screen');
+    } catch(e) { 
+        alert(e.message || "Failed to update limits"); 
+    }
+    loader(false);
+}
+
+function openAdminTgScreen() {
+    document.getElementById('admin-tg-id-input').value = window.appConfig?.adminTgId || '';
+    showScreen('admin-tg-screen');
+}
+
+async function saveAdminTgId() {
+    const tgId = document.getElementById('admin-tg-id-input').value.trim();
+    loader(true);
+    try {
+        await adminApiCall('ADMIN_UPDATE_SETTINGS', { action: 'ADMIN_TG', adminTgId: tgId });
+        alert("Admin Telegram ID saved successfully!");
+        if (window.appConfig) window.appConfig.adminTgId = tgId;
+        showScreen('admin-dashboard-screen');
+    } catch(e) { alert(e.message || "Failed to save TG ID"); }
+    loader(false);
+}
+</script>
+</body>
+</html>
