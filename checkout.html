@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Secure Checkout - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            color: white; 
+            background: radial-gradient(circle at top, #1f1800 0%, #0a0a0a 40%, #000000 100%) !important;
+            background-attachment: fixed !important;
+            min-height: 100vh;
+        }
+        .glass-panel { background: rgba(20, 20, 20, 0.7); border: 1px solid rgba(234, 179, 8, 0.15); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px); }
+    </style>
+        <!-- 👑 MASTER THEME ENGINE 👑 -->
+    <script>
+    (function() {
+        // 10+ VIP Colors Setup
+        const themes = {
+            'gold': { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' },
+            'skyblue': { 300: '#e0f2fe', 400: '#7dd3fc', 500: '#0ea5e9', 600: '#0284c7' }, // Tera Favourite
+            'emerald': { 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+            'pink': { 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+            'purple': { 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+            'red': { 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            'cyan': { 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            'orange': { 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c' },
+            'blue': { 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' },
+            'silver': { 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569' }
+        };
+
+        const currentTheme = localStorage.getItem('king_theme') || 'gold';
+        const t = themes[currentTheme];
+
+        // Agar theme Gold nahi hai, toh automatic CSS inject karke pure app ka colour badal do
+        if (currentTheme !== 'gold') {
+            const style = document.createElement('style');
+            style.id = 'vip-theme-engine';
+            style.innerHTML = `
+                :root { --t-300: ${t[300]}; --t-400: ${t[400]}; --t-500: ${t[500]}; --t-600: ${t[600]}; }
+                
+                /* Text Overrides */
+                .text-yellow-300, .text-yellow-400 { color: var(--t-400) !important; }
+                .text-yellow-500, .gold { color: var(--t-500) !important; }
+                .text-yellow-600 { color: var(--t-600) !important; }
+                .text-yellow-500\\/70 { color: color-mix(in srgb, var(--t-500) 70%, transparent) !important; }
+                .text-yellow-500\\/80 { color: color-mix(in srgb, var(--t-500) 80%, transparent) !important; }
+                
+                /* Background Overrides */
+                .bg-yellow-400 { background-color: var(--t-400) !important; }
+                .bg-yellow-500 { background-color: var(--t-500) !important; }
+                .bg-yellow-600 { background-color: var(--t-600) !important; }
+                .bg-yellow-500\\/10 { background-color: color-mix(in srgb, var(--t-500) 10%, transparent) !important; }
+                .bg-yellow-500\\/20 { background-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Border & Gradient Overrides */
+                .border-yellow-400 { border-color: var(--t-400) !important; }
+                .border-yellow-500 { border-color: var(--t-500) !important; }
+                .border-yellow-600 { border-color: var(--t-600) !important; }
+                .border-yellow-500\\/20 { border-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                .border-yellow-500\\/30 { border-color: color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                .border-yellow-500\\/50 { border-color: color-mix(in srgb, var(--t-500) 50%, transparent) !important; }
+                
+                .from-yellow-300 { --tw-gradient-from: var(--t-300) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-400 { --tw-gradient-from: var(--t-400) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-500 { --tw-gradient-from: var(--t-500) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .to-yellow-600 { --tw-gradient-to: var(--t-600) !important; }
+                .to-yellow-500 { --tw-gradient-to: var(--t-500) !important; }
+                
+                /* Shadows & Glows */
+                [class*="shadow-[0_0_10px_rgba(234,179,8"] { box-shadow: 0 0 10px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_15px_rgba(245,158,11"] { box-shadow: 0 0 15px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_20px_rgba(245,158,11"] { box-shadow: 0 0 20px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_10px_30px_rgba(234,179,8"] { box-shadow: 0 10px 30px color-mix(in srgb, var(--t-500) 15%, transparent) !important; }
+                [class*="shadow-[0_0_40px_rgba(234,179,8"] { box-shadow: 0 0 40px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_5px_15px_rgba(234,179,8"] { box-shadow: 0 5px 15px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Extra Specific fixes */
+                .theme-icon-dynamic { color: var(--t-500) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        window.setKingTheme = (themeName) => {
+            localStorage.setItem('king_theme', themeName);
+            window.location.reload(); // Set hote hi turant page refresh hokar naya colour aayega
+        }
+    })();
+    </script>
+</head>
+<body class="flex items-center justify-center p-4 relative overflow-hidden">
+
+    <!-- Background Glows -->
+    <div class="absolute -top-20 -right-20 w-64 h-64 bg-yellow-600 opacity-10 blur-[80px] rounded-full pointer-events-none"></div>
+    <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-600 opacity-10 blur-[80px] rounded-full pointer-events-none"></div>
+
+    <div class="w-full max-w-md relative z-10 space-y-6">
+        
+        <!-- Header -->
+        <div class="text-center space-y-2">
+            <div class="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(245,158,11,0.2)] mb-4">
+                <i class="fa-solid fa-crown text-3xl text-yellow-500"></i>
+            </div>
+            <h1 class="text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">King Gateway</h1>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]"><i class="fa-solid fa-lock text-green-500"></i> 100% Secure Payment</p>
+        </div>
+
+        <!-- Payment Details Card -->
+        <div class="glass-panel rounded-[2rem] p-6 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-orange-500"></div>
+            
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Paying To</p>
+            <h2 id="merchant-name" class="text-lg font-black text-white uppercase tracking-wider mb-4 animate-pulse">Loading Merchant...</h2>
+            
+            <div class="bg-black/50 border border-white/5 rounded-2xl p-4 shadow-inner">
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Amount</p>
+                <h1 id="pay-amount" class="text-4xl font-black text-yellow-500">₹0.00</h1>
+                <p id="order-id-display" class="text-[9px] text-gray-600 font-mono mt-2">Order ID: ...</p>
+            </div>
+        </div>
+
+        <!-- User Authentication Form -->
+        <div class="glass-panel rounded-[2rem] p-6 space-y-5">
+            <h3 class="text-[11px] font-black text-yellow-500 uppercase tracking-widest border-b border-white/10 pb-2"><i class="fa-solid fa-wallet"></i> Pay with King Wallet</h3>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-gray-400 pl-2 uppercase tracking-wider">Your Registered Number</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-phone text-yellow-500"></i>
+                    </div>
+                    <input id="user-phone" type="number" placeholder="10-Digit Mobile" class="w-full pl-11 p-4 bg-black/60 border border-white/10 rounded-2xl font-bold text-white focus:outline-none focus:border-yellow-500 transition-all focus:ring-1 focus:ring-yellow-500">
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-gray-400 pl-2 uppercase tracking-wider">Wallet Security PIN</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-key text-yellow-500"></i>
+                    </div>
+                    <input id="user-pin" type="password" maxlength="4" placeholder="4-Digit PIN" class="w-full pl-11 p-4 bg-black/60 border border-white/10 rounded-2xl font-black tracking-[10px] text-center text-white focus:outline-none focus:border-yellow-500 transition-all focus:ring-1 focus:ring-yellow-500">
+                </div>
+            </div>
+
+            <button onclick="processGatewayPayment()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-black py-4 rounded-2xl shadow-[0_0_15px_rgba(245,158,11,0.3)] active:scale-95 transition-all flex justify-center items-center gap-2 uppercase tracking-widest mt-2">
+                Pay Now <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+        
+        <button onclick="cancelPayment()" class="w-full text-[10px] font-bold text-red-500 uppercase tracking-widest active:scale-95 transition-all text-center">
+            Cancel Payment
+        </button>
+
+    </div>
+
+    <script type="module">
+        import { db, collection, query, where, getDocs, doc, getDoc, updateDoc, increment, addDoc } from "/api/Backend.js";
+
+        // URL Parameters Read Karna (Merchant kya data bhej raha hai)
+        const params = new URLSearchParams(window.location.search);
+        const apiKey = params.get('key');
+        const amount = Number(params.get('amount'));
+        const orderId = params.get('order_id') || "ORD" + Date.now();
+        const redirectUrl = params.get('redirect');
+
+        let merchantData = null;
+        let merchantPhone = null;
+
+        // 1. Page load hote hi Merchant ki details check karo
+        window.onload = async () => {
+            if (!apiKey || !amount || amount <= 0) {
+                return Swal.fire({ title: "Invalid Request! ❌", text: "API Key ya Amount missing hai.", icon: "error", background: '#111827', color: '#ef4444' });
+            }
+
+            document.getElementById('pay-amount').innerText = "₹" + amount.toFixed(2);
+            document.getElementById('order-id-display').innerText = "Order ID: " + orderId;
+
+            // Agar user browser me already logged in hai, toh number auto-fill kar do
+            const localUser = JSON.parse(localStorage.getItem('ultra_user'));
+            if(localUser && localUser.phone) {
+                document.getElementById('user-phone').value = localUser.phone.replace('+91', '');
+            }
+
+            try {
+                // Merchant ko API key se dhundho
+                const q = query(collection(db, "users"), where("apiKey", "==", apiKey));
+                const snap = await getDocs(q);
+
+                if (snap.empty) {
+                    document.getElementById('merchant-name').innerText = "❌ Unknown Merchant";
+                    return Swal.fire({ title: "Fake Merchant! ❌", text: "Ye API Key galat hai.", icon: "error", background: '#111827', color: '#ef4444' });
+                }
+
+                merchantData = snap.docs[0].data();
+                merchantPhone = snap.docs[0].id; // Merchant ka document ID (Number)
+                document.getElementById('merchant-name').innerText = merchantData.name || "Verified Merchant";
+                document.getElementById('merchant-name').classList.remove('animate-pulse');
+
+            } catch (e) {
+                console.error(e);
+                alert("Server connection failed!");
+            }
+        };
+
+        // 2. Final Payment Process
+        window.processGatewayPayment = async () => {
+            if (!merchantData) return alert("Merchant load nahi hua!");
+
+            let userPhone = document.getElementById('user-phone').value.trim();
+            const userPin = document.getElementById('user-pin').value.trim();
+
+            if (userPhone.length === 10) userPhone = "+91" + userPhone;
+            if (!userPhone || !userPin) return alert("Phone aur PIN daaliye!");
+            if (userPhone === merchantPhone) return alert("Khud ko pay nahi kar sakte!");
+
+            Swal.fire({ title: 'Processing Payment...', text: 'Please do not close this window.', background: '#111827', color: '#f59e0b', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+
+            try {
+                // Customer check
+                const payerRef = doc(db, "users", userPhone);
+                const payerSnap = await getDoc(payerRef);
+
+                if (!payerSnap.exists()) throw new Error("Account nahi mila! Number check karein.");
+                
+                const payerData = payerSnap.data();
+
+                // PIN aur Balance check
+                if (payerData.pin.toString() !== userPin.toString()) throw new Error("Galat PIN!");
+                if (Number(payerData.balance) < amount) throw new Error("Insufficient Balance!");
+
+                // 🔥 NAYA JADOO: Safe Math Engine (String/Number Error Bypass)
+                
+                // 1. Payer (Customer) ka balance safe minus karo
+                let payerCurrentBal = parseFloat(payerData.balance) || 0;
+                let payerNewBal = Number((payerCurrentBal - amount).toFixed(2));
+                await updateDoc(payerRef, { balance: payerNewBal });
+
+                // 2. Merchant ka current balance fetch karo aur safe plus karo
+                const merchantRef = doc(db, "users", merchantPhone);
+                const merchantSnap = await getDoc(merchantRef);
+                
+                let merchantCurrentBal = parseFloat(merchantSnap.data().balance) || 0;
+                let merchantNewBal = Number((merchantCurrentBal + amount).toFixed(2));
+                await updateDoc(merchantRef, { balance: merchantNewBal });
+
+                // Transaction History Add Karna
+                const txnId = "GW" + Date.now();
+                await addDoc(collection(db, "transactions"), {
+                    id: txnId,
+                    type: "API SEND", // Customer ke liye
+                    amount: amount,
+                    userPhone: userPhone,
+                    to: merchantPhone,
+                    status: "SUCCESS",
+                    timestamp: Date.now(),
+                    date: new Date().toLocaleString('en-IN'),
+                    orderId: orderId
+                });
+
+                // Merchant ki history
+                await addDoc(collection(db, "transactions"), {
+                    id: txnId,
+                    type: "API RECEIVED", // Merchant ke liye
+                    amount: amount,
+                    userPhone: merchantPhone,
+                    from: userPhone,
+                    status: "SUCCESS",
+                    timestamp: Date.now(),
+                    date: new Date().toLocaleString('en-IN'),
+                    orderId: orderId
+                });
+
+                Swal.fire({
+                    title: "Payment Successful! ✅",
+                    text: "Redirecting to merchant...",
+                    icon: "success",
+                    background: '#111827', color: '#10b981', showConfirmButton: false, timer: 2000
+                }).then(() => {
+                    // Merchant ki website par wapas bhejo success message ke sath
+                    if (redirectUrl) {
+                        window.location.href = `${redirectUrl}?status=success&txn_id=${txnId}&order_id=${orderId}&amount=${amount}`;
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                });
+
+            } catch (e) {
+                Swal.fire({ title: "Payment Failed ❌", text: e.message, icon: "error", background: '#111827', color: '#ef4444' });
+            }
+        };
+
+        window.cancelPayment = () => {
+            if (redirectUrl) {
+                window.location.href = `${redirectUrl}?status=failed&order_id=${orderId}`;
+            } else {
+                window.location.href = 'index.html';
+            }
+        };
+    </script>
+</body>
+</html>

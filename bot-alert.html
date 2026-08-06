@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bot Alert - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #050505; color: white; }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        .sky { color: #38bdf8; }
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-left-color: #38bdf8; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+        <!-- 👑 MASTER THEME ENGINE 👑 -->
+    <script>
+    (function() {
+        // 10+ VIP Colors Setup
+        const themes = {
+            'gold': { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' },
+            'skyblue': { 300: '#e0f2fe', 400: '#7dd3fc', 500: '#0ea5e9', 600: '#0284c7' }, // Tera Favourite
+            'emerald': { 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+            'pink': { 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+            'purple': { 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+            'red': { 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            'cyan': { 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            'orange': { 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c' },
+            'blue': { 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' },
+            'silver': { 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569' }
+        };
+
+        const currentTheme = localStorage.getItem('king_theme') || 'gold';
+        const t = themes[currentTheme];
+
+        // Agar theme Gold nahi hai, toh automatic CSS inject karke pure app ka colour badal do
+        if (currentTheme !== 'gold') {
+            const style = document.createElement('style');
+            style.id = 'vip-theme-engine';
+            style.innerHTML = `
+                :root { --t-300: ${t[300]}; --t-400: ${t[400]}; --t-500: ${t[500]}; --t-600: ${t[600]}; }
+                
+                /* Text Overrides */
+                .text-yellow-300, .text-yellow-400 { color: var(--t-400) !important; }
+                .text-yellow-500, .gold { color: var(--t-500) !important; }
+                .text-yellow-600 { color: var(--t-600) !important; }
+                .text-yellow-500\\/70 { color: color-mix(in srgb, var(--t-500) 70%, transparent) !important; }
+                .text-yellow-500\\/80 { color: color-mix(in srgb, var(--t-500) 80%, transparent) !important; }
+                
+                /* Background Overrides */
+                .bg-yellow-400 { background-color: var(--t-400) !important; }
+                .bg-yellow-500 { background-color: var(--t-500) !important; }
+                .bg-yellow-600 { background-color: var(--t-600) !important; }
+                .bg-yellow-500\\/10 { background-color: color-mix(in srgb, var(--t-500) 10%, transparent) !important; }
+                .bg-yellow-500\\/20 { background-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Border & Gradient Overrides */
+                .border-yellow-400 { border-color: var(--t-400) !important; }
+                .border-yellow-500 { border-color: var(--t-500) !important; }
+                .border-yellow-600 { border-color: var(--t-600) !important; }
+                .border-yellow-500\\/20 { border-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                .border-yellow-500\\/30 { border-color: color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                .border-yellow-500\\/50 { border-color: color-mix(in srgb, var(--t-500) 50%, transparent) !important; }
+                
+                .from-yellow-300 { --tw-gradient-from: var(--t-300) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-400 { --tw-gradient-from: var(--t-400) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-500 { --tw-gradient-from: var(--t-500) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .to-yellow-600 { --tw-gradient-to: var(--t-600) !important; }
+                .to-yellow-500 { --tw-gradient-to: var(--t-500) !important; }
+                
+                /* Shadows & Glows */
+                [class*="shadow-[0_0_10px_rgba(234,179,8"] { box-shadow: 0 0 10px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_15px_rgba(245,158,11"] { box-shadow: 0 0 15px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_20px_rgba(245,158,11"] { box-shadow: 0 0 20px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_10px_30px_rgba(234,179,8"] { box-shadow: 0 10px 30px color-mix(in srgb, var(--t-500) 15%, transparent) !important; }
+                [class*="shadow-[0_0_40px_rgba(234,179,8"] { box-shadow: 0 0 40px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_5px_15px_rgba(234,179,8"] { box-shadow: 0 5px 15px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Extra Specific fixes */
+                .theme-icon-dynamic { color: var(--t-500) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        window.setKingTheme = (themeName) => {
+            localStorage.setItem('king_theme', themeName);
+            window.location.reload(); // Set hote hi turant page refresh hokar naya colour aayega
+        }
+    })();
+    </script>
+</head>
+<body class="flex justify-center">
+
+    <div class="w-full max-w-md min-h-screen border-x border-slate-900 pb-20">
+        <div class="p-5 flex items-center border-b border-white/5 sticky top-0 bg-black/80 z-50">
+            <button onclick="window.location.href='index.html'" class="h-10 w-10 glass rounded-full flex items-center justify-center mr-4 sky">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h1 class="text-xs font-black uppercase sky tracking-widest">Telegram Alerts</h1>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <div class="glass p-6 rounded-[2.5rem] border-sky-500/20 border text-center space-y-4">
+                <div class="h-16 w-16 bg-sky-500/10 rounded-full flex items-center justify-center text-sky-500 mx-auto shadow-lg shadow-sky-500/10">
+                    <i class="fa-brands fa-telegram text-3xl"></i>
+                </div>
+                <h2 class="text-sm font-black uppercase italic">Connect Telegram</h2>
+                <p class="text-[10px] text-gray-500 leading-relaxed">Apne transactions ke live alerts paane ke liye apni **Chat ID** yahan enter karein.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">Your Telegram Chat ID</label>
+                    <input type="number" id="chat-id" placeholder="Ex: 582930412" 
+                        class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold focus:border-sky-500 outline-none transition-all">
+                </div>
+
+                <button onclick="saveBotSettings()" id="save-btn" class="w-full bg-sky-500 text-black font-black py-4 rounded-2xl shadow-lg shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-xs">
+                    <span id="btn-text">Link Account</span>
+                    <div id="ld" class="loader"></div>
+                </button>
+            </div>
+
+            <div class="glass p-4 rounded-2xl border-l-4 border-sky-500">
+                <p class="text-[10px] font-black sky uppercase mb-1">How to get Chat ID?</p>
+                <p class="text-[9px] text-gray-400">Telegram par <span class="white">@userinfobot</span> search karein aur message bhejein. Wo aapko aapki unique Chat ID de dega.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw6aKP8je-DzvengJ-ffxtez6xZFpQFn4",
+  authDomain: "king-wallet-49888.firebaseapp.com",
+  projectId: "king-wallet-49888",
+  storageBucket: "king-wallet-49888.firebasestorage.app",
+  messagingSenderId: "698310935797",
+  appId: "1:698310935797:web:85e03b49237225a7b371bc",
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const myPhone = localStorage.getItem('userPhone');
+
+        // FIXED BOT TOKEN (Ab ye user ko nahi dikhega)
+        const MASTER_BOT_TOKEN = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY"; 
+
+        // Load existing Chat ID
+        async function loadSettings() {
+            if(!myPhone) return;
+            const docSnap = await getDoc(doc(db, "users", myPhone));
+            if(docSnap.exists() && docSnap.data().telegramChatId) {
+                document.getElementById('chat-id').value = docSnap.data().telegramChatId;
+            }
+        }
+        loadSettings();
+
+        window.saveBotSettings = async () => {
+            const chatId = document.getElementById('chat-id').value.trim();
+            if(!chatId) return alert("Pehle Chat ID dalo!");
+
+            document.getElementById('btn-text').style.display = 'none';
+            document.getElementById('ld').style.display = 'block';
+
+            try {
+                // Firebase mein save kar rahe hain
+                await updateDoc(doc(db, "users", myPhone), {
+                    telegramChatId: chatId,
+                    botToken: MASTER_BOT_TOKEN // Token hum backend se khud save kar rahe hain
+                });
+                alert("Telegram Connected Successfully! ✅");
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+
+            document.getElementById('btn-text').style.display = 'block';
+            document.getElementById('ld').style.display = 'none';
+        };
+    </script>
+</body>
+</html>

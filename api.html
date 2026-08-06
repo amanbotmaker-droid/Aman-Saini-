@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>API Settings - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #050505; color: white; font-family: sans-serif; }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        .gold { color: #f59e0b; }
+        .code-box { background: #0f172a; color: #38bdf8; font-family: monospace; padding: 12px; border-radius: 12px; font-size: 10px; border: 1px solid #1e293b; }
+    </style>
+        <!-- 👑 MASTER THEME ENGINE 👑 -->
+    <script>
+    (function() {
+        // 10+ VIP Colors Setup
+        const themes = {
+            'gold': { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' },
+            'skyblue': { 300: '#e0f2fe', 400: '#7dd3fc', 500: '#0ea5e9', 600: '#0284c7' }, // Tera Favourite
+            'emerald': { 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+            'pink': { 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+            'purple': { 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+            'red': { 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            'cyan': { 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            'orange': { 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c' },
+            'blue': { 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' },
+            'silver': { 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569' }
+        };
+
+        const currentTheme = localStorage.getItem('king_theme') || 'gold';
+        const t = themes[currentTheme];
+
+        // Agar theme Gold nahi hai, toh automatic CSS inject karke pure app ka colour badal do
+        if (currentTheme !== 'gold') {
+            const style = document.createElement('style');
+            style.id = 'vip-theme-engine';
+            style.innerHTML = `
+                :root { --t-300: ${t[300]}; --t-400: ${t[400]}; --t-500: ${t[500]}; --t-600: ${t[600]}; }
+                
+                /* Text Overrides */
+                .text-yellow-300, .text-yellow-400 { color: var(--t-400) !important; }
+                .text-yellow-500, .gold { color: var(--t-500) !important; }
+                .text-yellow-600 { color: var(--t-600) !important; }
+                .text-yellow-500\\/70 { color: color-mix(in srgb, var(--t-500) 70%, transparent) !important; }
+                .text-yellow-500\\/80 { color: color-mix(in srgb, var(--t-500) 80%, transparent) !important; }
+                
+                /* Background Overrides */
+                .bg-yellow-400 { background-color: var(--t-400) !important; }
+                .bg-yellow-500 { background-color: var(--t-500) !important; }
+                .bg-yellow-600 { background-color: var(--t-600) !important; }
+                .bg-yellow-500\\/10 { background-color: color-mix(in srgb, var(--t-500) 10%, transparent) !important; }
+                .bg-yellow-500\\/20 { background-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Border & Gradient Overrides */
+                .border-yellow-400 { border-color: var(--t-400) !important; }
+                .border-yellow-500 { border-color: var(--t-500) !important; }
+                .border-yellow-600 { border-color: var(--t-600) !important; }
+                .border-yellow-500\\/20 { border-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                .border-yellow-500\\/30 { border-color: color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                .border-yellow-500\\/50 { border-color: color-mix(in srgb, var(--t-500) 50%, transparent) !important; }
+                
+                .from-yellow-300 { --tw-gradient-from: var(--t-300) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-400 { --tw-gradient-from: var(--t-400) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-500 { --tw-gradient-from: var(--t-500) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .to-yellow-600 { --tw-gradient-to: var(--t-600) !important; }
+                .to-yellow-500 { --tw-gradient-to: var(--t-500) !important; }
+                
+                /* Shadows & Glows */
+                [class*="shadow-[0_0_10px_rgba(234,179,8"] { box-shadow: 0 0 10px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_15px_rgba(245,158,11"] { box-shadow: 0 0 15px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_20px_rgba(245,158,11"] { box-shadow: 0 0 20px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_10px_30px_rgba(234,179,8"] { box-shadow: 0 10px 30px color-mix(in srgb, var(--t-500) 15%, transparent) !important; }
+                [class*="shadow-[0_0_40px_rgba(234,179,8"] { box-shadow: 0 0 40px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_5px_15px_rgba(234,179,8"] { box-shadow: 0 5px 15px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Extra Specific fixes */
+                .theme-icon-dynamic { color: var(--t-500) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        window.setKingTheme = (themeName) => {
+            localStorage.setItem('king_theme', themeName);
+            window.location.reload(); // Set hote hi turant page refresh hokar naya colour aayega
+        }
+    })();
+    </script>
+</head>
+<body class="flex justify-center">
+    <div class="w-full max-w-md min-h-screen border-x border-slate-900 pb-20">
+        
+        <div class="p-5 flex items-center border-b border-white/5 sticky top-0 bg-black/80 z-50">
+            <button onclick="window.location.href='index.html'" class="h-10 w-10 glass rounded-full flex items-center justify-center mr-4 gold"><i class="fa-solid fa-arrow-left"></i></button>
+            <h1 class="text-xs font-black uppercase gold tracking-widest">API Configuration</h1>
+        </div>
+
+        <div class="p-5 space-y-6">
+
+                        <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-link text-blue-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Payment API URL</h3>
+                </div>
+                
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative mb-5">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2">FULL API URL</p>
+                    <p class="text-xs font-mono text-slate-300 break-all leading-relaxed">
+                        https://king-wallet-pn77.vercel.app/api/pay?key=<span class="text-emerald-400 user-api-key-text">KW-ZWCHRTPQYX</span>&paytm=<span class="text-yellow-400">{number}</span>&amount=<span class="text-yellow-400">{amount}</span>&comment=<span class="text-yellow-400">payout</span>
+                    </p>
+                    <button onclick="window.copyApiText('api-url-full')" class="absolute top-3 right-3 w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 active:scale-90">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-sliders text-slate-400"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Parameters</h3>
+                </div>
+                
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">key <span class="text-red-500">*</span></span><span class="text-slate-500 text-xs">Your API Key</span></div>
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">paytm <span class="text-red-500">*</span></span><span class="text-slate-500 text-xs">Receiver number</span></div>
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">amount <span class="text-red-500">*</span></span><span class="text-slate-500 text-xs">Amount in ₹ (min ₹1)</span></div>
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">comment</span><span class="text-slate-500 text-xs">Optional comment</span></div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-key text-yellow-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Your API Key</h3>
+                </div>
+                <div class="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl flex justify-between items-center mb-5">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 mb-1">API KEY</p>
+                        <p class="text-sm font-bold text-blue-600 user-api-key-text" id="api-key-input-display">KW-ZWCHRTPQYX</p>
+                    </div>
+                    <button onclick="window.copyApiText('api-key-only')" class="bg-white border border-slate-200 text-blue-600 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 active:scale-95 shadow-sm">
+                        <i class="fa-regular fa-copy"></i> Copy
+                    </button>
+                </div>
+                
+                <button onclick="window.generateUserApiKey()" class="w-full border border-blue-200 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl flex justify-center items-center gap-2 text-sm active:scale-95 transition-all">
+                    <i class="fa-solid fa-rotate-right"></i> REGENERATE API KEY
+                </button>
+            </div>
+
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 space-y-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Response Examples</h3>
+                </div>
+
+                <div class="bg-[#0b2218] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-emerald-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-check"></i> SUCCESS RESPONSE</p>
+                    <pre class="text-[11px] font-mono text-emerald-100/80 leading-relaxed">{
+  "status": "success",
+  "message": "Payment successful",
+  "data": {
+    "transaction_id": "TXNhgphgfqre1med5sc",
+    "amount": 50,
+    "receiver": {
+      "name": "Name",
+      "number": "number"
+    },
+    "comment": "payout",
+    "timestamp": "16-03-2026 15:12:06"
+  }
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — INVALID KEY</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Invalid API key"
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — LOW BALANCE</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Admin Balance Low"
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — NUMBER NOT FOUND</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Receiver 9876543210 not found"
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — DUPLICATE TXN</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Already Claimed! This Transaction ID is used."
+}</pre>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-circle-info text-blue-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Other Endpoints</h3>
+                </div>
+
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative mb-4">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">CHECK BALANCE</p>
+                    <p class="text-xs font-mono text-slate-300 break-all leading-relaxed">
+                        https://king-wallet-pn77.vercel.app/payment/balance?key=<span class="text-emerald-400 user-api-key-text">KW-ZWCHRTPQYX</span>
+                    </p>
+                </div>
+
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">VERIFY NUMBER</p>
+                    <p class="text-xs font-mono text-slate-300 break-all leading-relaxed">
+                        https://king-wallet-pn77.vercel.app/payment/verify?key=<span class="text-emerald-400 user-api-key-text">KW-ZWCHRTPQYX</span>&number=<span class="text-yellow-400">{number}</span>
+                    </p>
+                </div>
+            </div>
+            <!-- KINGPAY INTEGRATION SECTION -->
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-rocket text-indigo-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">KingPay Integration</h3>
+                </div>
+                
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative mb-4">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">1. INCLUDE LIBRARY</p>
+                    <code class="text-[10px] text-emerald-400 break-all">&lt;script src="https://king-wallet-pn77.vercel.app/api/kingpay.js"&gt;&lt;/script&gt;</code>
+                    
+                    <p class="text-[10px] font-bold text-slate-500 mt-4 mb-2 uppercase">2. REDIRECT TO PAYMENT</p>
+                    <code id="kingpay-code" class="text-[10px] text-emerald-400 break-all">KingPay.redirectToPayment({ key: 'YOUR_API_KEY', amount: 100, order_id: 'ORD123', paytm: '9876543210' });</code>
+                </div>
+                
+                <button onclick="window.copyKingPayCode()" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-2xl flex justify-center items-center gap-2 text-sm active:scale-95 transition-all">
+                    <i class="fa-regular fa-copy"></i> COPY KINGPAY SCRIPT
+                </button>
+            </div>
+
+        </div>
+    </div>
+<script type="module">
+    // 1. Backend se tools mangwao
+    import { db, doc, updateDoc, getDoc, onSnapshot } from "/api/Backend.js";
+
+    // 2. Global Setup (Isse purana code bina chhede chalega)
+    window.db = db;
+    window.doc = doc;
+    window.updateDoc = updateDoc;
+    window.getDoc = getDoc;
+    window.onSnapshot = onSnapshot;
+
+    console.log("API Settings Backend Connected! ✅");
+
+    // 2. USER DATA FETCH (Error Fix yahan hai)
+    const myPhone = localStorage.getItem('userPhone'); // LocalStorage se phone lo
+
+    async function loadApiData() {
+        if(!myPhone) {
+            alert("Session Expired! Please Login Again.");
+            window.location.href = 'login.html';
+            return;
+        }
+        const docSnap = await window.getDoc(window.doc(window.db, "users", myPhone));
+        if(docSnap.exists()) {
+            const userData = docSnap.data();
+            const currentKey = userData.apiKey || "KW-NOT-GENERATED";
+            
+            // Screen par key update karo
+            document.querySelectorAll('.user-api-key-text').forEach(el => {
+                if(el.tagName === 'INPUT') el.value = currentKey;
+                else el.innerText = currentKey;
+            });
+            // Taki copy function ko key mil sake
+            window.currentUserKey = currentKey; 
+        }
+    }
+    loadApiData();
+
+    // 3. REGENERATE KEY LOGIC
+    window.generateUserApiKey = async () => {
+        if (!confirm("Are you sure? Nayi key banate hi purani kaam band kar degi!")) return;
+
+        // Ek Unique Key banao
+        const newKey = 'KW-' + Math.random().toString(36).substr(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase();
+
+        try {
+            await window.updateDoc(window.doc(window.db, "users", myPhone), {
+                apiKey: newKey,
+                merchantApiKey: newKey
+            });
+
+            // UI Update
+            document.querySelectorAll('.user-api-key-text').forEach(el => {
+                if(el.tagName === 'INPUT') el.value = newKey;
+                else el.innerText = newKey;
+            });
+            window.currentUserKey = newKey;
+
+            alert("✅ VIP API Key Ban Gayi: " + newKey);
+        } catch (error) {
+            alert("❌ Error: " + error.message);
+        }
+    };
+
+    // 4. COPY LOGIC
+    window.copyApiText = (type) => {
+        let textToCopy = "";
+        const key = window.currentUserKey || "NO_KEY_YET";
+
+        if (type === 'api-key-only') {
+            textToCopy = key;
+        } else if (type === 'api-url-full') {
+            textToCopy = `https://king-wallet-pn77.vercel.app/api/pay?key=${key}&paytm={number}&amount={amount}&comment=payout`;
+        }
+        navigator.clipboard.writeText(textToCopy);
+        alert("✅ Copied to clipboard!");
+    };
+        window.copyKingPayCode = () => {
+            const apiKey = document.getElementById('api-key-input-display').innerText;
+            const code = `KingPay.redirectToPayment({ key: '${apiKey}', amount: 100, order_id: 'ORD123', paytm: '9876543210' });`;
+            navigator.clipboard.writeText(code);
+            alert("✅ KingPay script copied with your API Key!");
+        };
+</script>
+</body>
+</html>

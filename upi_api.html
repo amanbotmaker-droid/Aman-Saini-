@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>King Wallet - Auto UPI API</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 (VIP Alerts) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <!-- 👑 MASTER THEME ENGINE 👑 -->
+    <script>
+    (function() {
+        // 10+ VIP Colors Setup
+        const themes = {
+            'gold': { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' },
+            'skyblue': { 300: '#e0f2fe', 400: '#7dd3fc', 500: '#0ea5e9', 600: '#0284c7' }, // Tera Favourite
+            'emerald': { 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+            'pink': { 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+            'purple': { 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+            'red': { 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            'cyan': { 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            'orange': { 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c' },
+            'blue': { 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' },
+            'silver': { 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569' }
+        };
+
+        const currentTheme = localStorage.getItem('king_theme') || 'gold';
+        const t = themes[currentTheme];
+
+        // Agar theme Gold nahi hai, toh automatic CSS inject karke pure app ka colour badal do
+        if (currentTheme !== 'gold') {
+            const style = document.createElement('style');
+            style.id = 'vip-theme-engine';
+            style.innerHTML = `
+                :root { --t-300: ${t[300]}; --t-400: ${t[400]}; --t-500: ${t[500]}; --t-600: ${t[600]}; }
+                
+                /* Text Overrides */
+                .text-yellow-300, .text-yellow-400 { color: var(--t-400) !important; }
+                .text-yellow-500, .gold { color: var(--t-500) !important; }
+                .text-yellow-600 { color: var(--t-600) !important; }
+                .text-yellow-500\\/70 { color: color-mix(in srgb, var(--t-500) 70%, transparent) !important; }
+                .text-yellow-500\\/80 { color: color-mix(in srgb, var(--t-500) 80%, transparent) !important; }
+                
+                /* Background Overrides */
+                .bg-yellow-400 { background-color: var(--t-400) !important; }
+                .bg-yellow-500 { background-color: var(--t-500) !important; }
+                .bg-yellow-600 { background-color: var(--t-600) !important; }
+                .bg-yellow-500\\/10 { background-color: color-mix(in srgb, var(--t-500) 10%, transparent) !important; }
+                .bg-yellow-500\\/20 { background-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Border & Gradient Overrides */
+                .border-yellow-400 { border-color: var(--t-400) !important; }
+                .border-yellow-500 { border-color: var(--t-500) !important; }
+                .border-yellow-600 { border-color: var(--t-600) !important; }
+                .border-yellow-500\\/20 { border-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                .border-yellow-500\\/30 { border-color: color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                .border-yellow-500\\/50 { border-color: color-mix(in srgb, var(--t-500) 50%, transparent) !important; }
+                
+                .from-yellow-300 { --tw-gradient-from: var(--t-300) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-400 { --tw-gradient-from: var(--t-400) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-500 { --tw-gradient-from: var(--t-500) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .to-yellow-600 { --tw-gradient-to: var(--t-600) !important; }
+                .to-yellow-500 { --tw-gradient-to: var(--t-500) !important; }
+                
+                /* Shadows & Glows */
+                [class*="shadow-[0_0_10px_rgba(234,179,8"] { box-shadow: 0 0 10px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_15px_rgba(245,158,11"] { box-shadow: 0 0 15px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_20px_rgba(245,158,11"] { box-shadow: 0 0 20px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_10px_30px_rgba(234,179,8"] { box-shadow: 0 10px 30px color-mix(in srgb, var(--t-500) 15%, transparent) !important; }
+                [class*="shadow-[0_0_40px_rgba(234,179,8"] { box-shadow: 0 0 40px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_5px_15px_rgba(234,179,8"] { box-shadow: 0 5px 15px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Extra Specific fixes */
+                .theme-icon-dynamic { color: var(--t-500) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        window.setKingTheme = (themeName) => {
+            localStorage.setItem('king_theme', themeName);
+            window.location.reload(); // Set hote hi turant page refresh hokar naya colour aayega
+        }
+    })();
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 md:p-10 font-sans">
+
+    <!-- Main VIP Container -->
+    <div class="max-w-4xl mx-auto">
+                <!-- VIP Back Button -->
+        <div class="mb-6">
+            <button onclick="window.location.href='index.html'" class="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold text-sm tracking-wide transition-all bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 w-fit active:scale-95">
+                <i class="fa-solid fa-arrow-left text-emerald-500"></i> Back to Dashboard
+            </button>
+        </div>
+        
+        <!-- Header Section -->
+        <div class="mb-10 text-center">
+            <h1 class="text-3xl font-bold text-slate-900 uppercase tracking-widest flex items-center justify-center gap-3">
+                <i class="fa-solid fa-crown text-yellow-500"></i> King Wallet UPI API
+            </h1>
+            <p class="text-slate-500 mt-2 font-medium tracking-wide">Premium API Access Powered by KING WALLET</p>
+        </div>
+
+        <!-- 👑 THE UPI API BLOCK 👑 -->
+        <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100">
+            
+            <div class="flex items-center gap-2 mb-6">
+                <i class="fa-solid fa-bolt text-purple-500 text-lg"></i>
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Auto UPI Payout API</h3>
+            </div>
+
+            <!-- Full API URL Box -->
+            <div class="bg-[#0f172a] p-5 rounded-2xl relative mb-8 group">
+                <p class="text-[11px] font-bold text-slate-500 mb-3 uppercase tracking-widest">FULL API URL</p>
+                <p class="text-sm font-mono text-slate-300 break-all leading-relaxed" id="api-url-upi">
+                    https://king-wallet-pn77.vercel.app/api/upi?key=<span id="dynamic-api-key" class="text-emerald-400">LOADING...</span>&upi_id=<span class="text-yellow-400">{upi_id}</span>&amount=<span class="text-yellow-400">{amount}</span>&comment=Payout
+                </p>
+                <!-- Copy Button -->
+                <button onclick="copyApiText('api-url-upi')" class="absolute top-4 right-4 w-9 h-9 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-emerald-500 flex items-center justify-center transition-all cursor-pointer shadow-md">
+                    <i class="fa-solid fa-copy"></i>
+                </button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="flex items-center gap-2 mb-5">
+                <i class="fa-solid fa-sliders text-slate-400"></i>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Parameters</h3>
+            </div>
+
+            <div class="space-y-4 text-sm mb-8 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <div class="flex justify-between border-b border-slate-200 pb-3">
+                    <span class="font-bold text-slate-700 font-mono">key <span class="text-red-500">*</span></span>
+                    <span class="text-slate-500 text-right">Your King Wallet API Key</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200 pb-3">
+                    <span class="font-bold text-slate-700 font-mono">upi_id <span class="text-red-500">*</span></span>
+                    <span class="text-slate-500 text-right">Receiver's UPI Address</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200 pb-3">
+                    <span class="font-bold text-slate-700 font-mono">amount <span class="text-red-500">*</span></span>
+                    <span class="text-slate-500 text-right">Amount in ₹ (Min ₹10)</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200 pb-3">
+                    <span class="font-bold text-slate-700 font-mono">comment</span>
+                    <span class="text-slate-500 text-right">Optional remark (No spaces)</span>
+                </div>
+                <div class="flex justify-between pb-1 pt-1">
+                    <span class="font-bold text-red-500 font-mono"><i class="fa-solid fa-info-circle"></i> Note</span>
+                    <span class="text-slate-500 text-right font-semibold">₹3.60 Tax will be deducted per payout</span>
+                </div>
+            </div>
+
+            <!-- Responses Section (UPDATED FOR FULL2SMS) -->
+            <div class="flex items-center gap-2 mb-5">
+                <i class="fa-solid fa-code text-slate-400"></i>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Live Responses</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Success Response -->
+                <div class="bg-[#0f172a] p-5 rounded-2xl">
+                    <p class="text-[10px] font-bold text-emerald-500 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                        <i class="fa-solid fa-check-circle"></i> Success (200 OK)
+                    </p>
+                    <pre class="text-[12px] font-mono text-emerald-400/90 leading-relaxed whitespace-pre-wrap">
+{
+  "status": "success",
+  "message": "Payout Successful",
+  "data": {
+    "transaction_id": "KW_987654321",
+    "amount_sent": 100,
+    "tax_deducted": 3.60,
+    "total_deduction": 103.60
+  }
+}</pre>
+                </div>
+
+                <!-- Error Response -->
+                <div class="bg-[#2a0f15] p-5 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-500 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                        <i class="fa-solid fa-circle-xmark"></i> Error (400 Bad Request)
+                    </p>
+                    <pre class="text-[12px] font-mono text-red-400/90 leading-relaxed whitespace-pre-wrap">
+{
+  "status": "error",
+  "message": "Insufficient Balance! Minimum ₹15 required."
+}</pre>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 🔴 BACKEND & VIP COPY LOGIC SCRIPT 🔴 -->
+    <script type="module">
+        // 1. Backend se tools mangwao (Same as api.html)
+        import { db, doc, getDoc } from "/api/Backend.js";
+
+        // 2. Global Setup (Isse purana code bina chhede chalega)
+        window.db = db;
+        window.doc = doc;
+        window.getDoc = getDoc;
+
+        console.log("UPI API Settings Backend Connected! ✅");
+
+        // Global variable to store live balance
+        window.liveUserBalance = 0;
+
+        // 3. USER DATA FETCH (LocalStorage se phone lo)
+        const myPhone = localStorage.getItem('userPhone'); 
+
+        async function loadApiData() {
+            if(!myPhone) {
+                // Agar session nahi hai toh login pe bhejo
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Session Expired!',
+                    text: 'Please Login Again.',
+                    background: '#0f172a',
+                    color: '#f8fafc',
+                    customClass: { popup: 'rounded-3xl border border-slate-700' }
+                }).then(() => {
+                    window.location.href = 'index.html';
+                });
+                return;
+            }
+
+            try {
+                // Same logic as api.html
+                const docSnap = await window.getDoc(window.doc(window.db, "users", myPhone));
+                
+                if(docSnap.exists()) {
+                    const userData = docSnap.data();
+                    
+                    // Balance update kar rahe hain
+                    window.liveUserBalance = parseFloat(userData.balance) || 0;
+                    
+                    // API Key set karo (agar nayi key generated nahi hai toh user ka default phone/key use karo)
+                    const currentKey = userData.apiKey || myPhone;
+
+                    // API Key box mein user ka key automatically daal do
+                    const apiKeySpan = document.getElementById("dynamic-api-key");
+                    if(apiKeySpan) {
+                        apiKeySpan.innerText = currentKey;
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+            }
+        }
+
+        // Data load call karo
+        loadApiData();
+
+        // 4. COPY BUTTON KA MASTER LOGIC
+        window.copyApiText = function(elementId) {
+            
+            // 🛑 BOSS LOGIC: Minimum ₹300 Balance Check 🛑
+            if (window.liveUserBalance < 15) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Balance Low! 🛑',
+                    text: `Bhai, API use karne ke liye tere account me minimum ₹15 hona chahiye! Tera current balance ₹${window.liveUserBalance} hai.`,
+                    confirmButtonColor: '#ef4444', 
+                    background: '#0f172a',
+                    color: '#f8fafc',
+                    customClass: { popup: 'rounded-3xl border border-slate-700' }
+                });
+            } else {
+                // ✅ SUCCESS - Agar balance ₹300 ya zyada hai
+                const textElement = document.getElementById(elementId);
+                let cleanText = textElement.innerText || textElement.textContent;
+                
+                // Extra spaces hatane ke liye (taaki URL proper copy ho)
+                cleanText = cleanText.replace(/\s+/g, '');
+                
+                navigator.clipboard.writeText(cleanText).then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'API Copied! 👑',
+                        text: 'Tera VIP UPI API Link copy ho gaya hai! Tu API hit karne ke liye ready hai.',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        customClass: { popup: 'rounded-3xl border border-slate-700' }
+                    });
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                });
+            }
+        };
+    </script>
+</body>
+</html>

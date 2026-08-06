@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claim Lifafa - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-blue-600 min-h-screen flex items-center justify-center p-4">
+
+    <div id="main-card" class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl hidden">
+        
+        <div class="bg-gradient-to-b from-red-500 to-red-600 p-8 text-center text-white relative">
+            <div class="w-20 h-20 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-4">
+                <i class="fa-solid fa-envelope-open text-4xl"></i>
+            </div>
+            <h1 id="lf-title" class="text-2xl font-black">Loading...</h1>
+            <p id="lf-creator" class="text-sm opacity-80 mt-1">From: 95095*****</p>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <div id="task-section" class="space-y-3">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Mandatory Tasks</h3>
+                <div id="channels-list" class="space-y-2">
+                    </div>
+            </div>
+
+            <div id="code-section" class="hidden">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Enter Access Code</h3>
+                <input type="text" id="input-code" placeholder="ENTER CODE" class="w-full p-4 border-2 border-slate-100 rounded-2xl text-center font-black tracking-widest uppercase focus:border-blue-500 outline-none">
+            </div>
+
+            <div id="action-area" class="text-center py-4">
+                </div>
+
+            <button id="claim-btn" class="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-200 active:scale-95 transition-all">
+                CLAIM NOW
+            </button>
+        </div>
+    </div>
+
+    <div id="error-card" class="bg-white p-10 rounded-3xl text-center hidden">
+        <i class="fa-solid fa-circle-exclamation text-5xl text-red-500 mb-4"></i>
+        <h2 class="text-xl font-bold">Invalid Lifafa</h2>
+        <p class="text-slate-500 mt-2">Ye link expire ho chuki hai ya galat hai.</p>
+        <button onclick="window.location.href='index.html'"class="mt-6 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold">Go Back</button>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, runTransaction, serverTimestamp,collection, increment } from "/js/Backend.js";
+
+                const urlParams = new URLSearchParams(window.location.search);
+        const lifafaId = urlParams.get('id');
+        const myPhone = localStorage.getItem('userPhone');
+        const refPhone = urlParams.get('ref'); // 🚀 Referral link se aane wale ka number pakadna
+
+        if (!lifafaId) {
+            document.getElementById('error-card').classList.remove('hidden');
+        } else if (!myPhone) {
+            window.location.href = 'login.html';
+        } else {
+            loadLifafa();
+        }
+
+        let lifafaData = null;
+
+        async function loadLifafa() {
+            const lfRef = doc(db, "lifafas", lifafaId);
+            const snap = await getDoc(lfRef);
+
+            if (!snap.exists()) {
+                document.getElementById('error-card').classList.remove('hidden');
+                return;
+            }
+
+            lifafaData = snap.data();
+            document.getElementById('main-card').classList.remove('hidden');
+            document.getElementById('lf-title').innerText = lifafaData.title;
+            document.getElementById('lf-creator').innerText = `Sent by: ${lifafaData.creatorPhone.substring(0, 5)}*****`;
+
+// Channel Button banane wala naya logic (Smart Verification)
+const channelList = document.getElementById('channels-list');
+lifafaData.channels.forEach((link, index) => {
+    const btnContainer = document.createElement('div');
+    btnContainer.className = "flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100";
+    
+        // --- YAHAN SE PASTE KARO (Line 88 se 95 ki jagah) ---
+        const channelIdForApi = link.split('/').pop(); // t.me/username se username nikalna
+
+        btnContainer.innerHTML = `
+            <span class="text-sm font-bold"><i class="fa-brands fa-telegram text-blue-500 mr-2"></i> Channel ${index+1}</span> 
+            <button id="verify-btn-${index}" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold" 
+                onclick="window.verifyChannel('${link}', 'verify-btn-${index}', '@${channelIdForApi}')">
+                Join & Verify
+            </button>
+        `;
+        // --- YAHAN TAK PASTE KARO ---
+    channelList.appendChild(btnContainer);
+});
+
+        // --- YAHAN SE PASTE KARO (Line 100 se 114 ki jagah) ---
+        window.verifyChannel = async function(link, btnId, channelId) {
+            const btn = document.getElementById(btnId);
+            const myPhone = localStorage.getItem('userPhone');
+            
+            // 1. Firebase se User ki Telegram ID nikalna
+            const userSnap = await getDoc(doc(db, "users", myPhone));
+            const tgId = userSnap.data().tgId; // Jo tune Firebase mein save ki hai
+
+            if (!tgId) return Swal.fire("Error", "Aapki Telegram ID link nahi hai!", "error");
+
+            window.open(link, '_blank'); // Channel open karein
+            
+            btn.innerText = "Verifying...";
+            btn.disabled = true;
+
+            // 2. Hamari Vercel API ko call karna (Real time check)
+            try {
+                const response = await fetch(`/api/verify?userId=${tgId}&channelId=${channelId.replace('https://t.me/', '@')}`);
+                const data = await response.json();
+
+                if (data.ok && data.isMember) {
+                    btn.innerText = "Verified ✅";
+                    btn.classList.replace('bg-blue-600', 'bg-green-500');
+                    btn.dataset.verified = "true";
+                } else {
+                    btn.innerText = "Not Verified ❌";
+                    btn.classList.replace('bg-blue-600', 'bg-red-500');
+                    btn.disabled = false;
+                    Swal.fire("Not Joined", "Pehle channel join karein phir verify dabayein!", "warning");
+                }
+            } catch (e) {
+                btn.innerText = "Error!";
+                btn.disabled = false;
+            }
+        };
+        // --- YAHAN TAK PASTE KARO ---
+
+            // Show Access Code Section if needed
+            if (lifafaData.accessCode) {
+                document.getElementById('code-section').classList.remove('hidden');
+            }
+
+            // Set Action Area UI
+            const actionArea = document.getElementById('action-area');
+            if (lifafaData.type === 'toss') {
+                actionArea.innerHTML = `<div class="mb-2"><i class="fa-solid fa-coins text-5xl text-yellow-400 animate-bounce"></i></div><p class="text-sm font-bold">Flip the coin to win!</p>`;
+            } else if (lifafaData.type === 'scratch') {
+               actionArea.innerHTML = `<div style="position:relative; width:250px; height:120px; margin:auto;" class="rounded-2xl overflow-hidden shadow-inner">
+            <div class="absolute inset-0 bg-green-100 flex items-center justify-center font-black text-2xl text-green-600 border-2 border-green-500 rounded-2xl">
+                ₹${lifafaData.perAmount} Won!
+            </div>
+            <canvas id="scratch-pad" width="250" height="120" class="absolute top-0 left-0 cursor-pointer rounded-2xl z-10"></canvas>
+        </div>
+        <p class="text-xs text-slate-400 mt-3 font-bold uppercase tracking-widest">Scratch the card</p>
+    `;
+
+    // Asli Scratch karne ka Canvas Logic
+    setTimeout(() => {
+        const canvas = document.getElementById('scratch-pad');
+        const ctx = canvas.getContext('2d');
+        
+        // Silver color fill
+        ctx.fillStyle = '#cbd5e1'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Upar Text likhna
+        ctx.fillStyle = '#475569';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText('SCRATCH HERE', 60, 65);
+
+        let isDrawing = false;
+        
+        const scratchStart = () => isDrawing = true;
+        const scratchStop = () => isDrawing = false;
+        const scratchMove = (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            // Mouse aur Touch dono ke liye position nikalna
+            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+            const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+            
+            ctx.globalCompositeOperation = 'destination-out'; // Ye line color mitati hai
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2); // 15 brush ka size hai
+            ctx.fill();
+        };
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', scratchStart);
+        canvas.addEventListener('mouseup', scratchStop);
+        canvas.addEventListener('mousemove', scratchMove);
+        
+        // Mobile Touch Events (Sabse zaroori)
+        canvas.addEventListener('touchstart', scratchStart);
+        canvas.addEventListener('touchend', scratchStop);
+        canvas.addEventListener('touchmove', scratchMove);
+    }, 100);
+                        } else {
+                actionArea.innerHTML = `<p class="text-slate-500 text-sm">Join channels and enter code to claim.</p>`;
+            }
+
+            // 🚀 VIP REFER & EARN BANNER LOGIC 🚀
+            if (lifafaData.referral && lifafaData.referral.enabled) {
+                const refDiv = document.createElement('div');
+                refDiv.className = "mt-5 p-4 bg-blue-50 border-2 border-dashed border-blue-400 rounded-2xl text-center relative overflow-hidden shadow-sm";
+                const myRefLink = `${window.location.origin}/claim_lifafa.html?id=${lifafaId}&ref=${myPhone}`;
+                
+                refDiv.innerHTML = `
+                    <div class="absolute -right-4 -top-4 text-blue-200/50 text-6xl"><i class="fa-solid fa-users"></i></div>
+                    <div class="relative z-10">
+                        <h3 class="font-black text-sm text-blue-800 uppercase tracking-widest mb-1"><i class="fa-solid fa-share-nodes text-blue-600 mr-1"></i> Refer & Earn ₹${lifafaData.referral.creatorGets}</h3>
+                        <p class="text-[10px] text-blue-600 font-bold mb-3">Share link with friends and get bonus!</p>
+                        <button onclick="navigator.clipboard.writeText('${myRefLink}'); Swal.fire('Copied! 🔗', 'Link copied! Doston ko bhejo aur kamao.', 'success')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-black shadow-md shadow-blue-200 active:scale-95 transition">
+                            <i class="fa-solid fa-copy mr-1"></i> COPY REFERRAL LINK
+                        </button>
+                    </div>
+                `;
+                document.getElementById('action-area').after(refDiv);
+            }
+        }
+
+        document.getElementById('claim-btn').addEventListener('click', async () => {
+            const inputCode = document.getElementById('input-code').value.trim();
+            const btn = document.getElementById('claim-btn');
+
+            if (lifafaData.accessCode && inputCode.toUpperCase() !== lifafaData.accessCode.toUpperCase()) {
+                return Swal.fire("Wrong Code", "Please enter correct access code!", "error");
+            }
+            // --- YAHAN SE PASTE KARO (Line 188 par) ---
+            const unverifiedBtns = document.querySelectorAll('[id^="verify-btn-"]:not([data-verified="true"])');
+            if (unverifiedBtns.length > 0) {
+                return Swal.fire("Verification Required", "Pehle sabhi channels Join & Verify karein!", "warning");
+            }
+            // --- YAHAN TAK PASTE KARO ---
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CLAIMING...';
+
+            try {
+                const userRef = doc(db, "users", myPhone);
+                const lfRef = doc(db, "lifafas", lifafaId);
+                const claimRef = doc(db, "lifafas", lifafaId, "claims", myPhone);
+
+                                await runTransaction(db, async (transaction) => {
+                    const lfSnap = await transaction.get(lfRef);
+                    const userSnap = await transaction.get(userRef);
+                    const claimSnap = await transaction.get(claimRef);
+
+                    // 1. Agar kisi dost ki link se aaya hai toh uska data nikalna
+                    let refUserSnap = null;
+                    let refUserRef = null;
+                    if (refPhone && refPhone !== myPhone) {
+                        refUserRef = doc(db, "users", refPhone);
+                        refUserSnap = await transaction.get(refUserRef);
+                    }
+
+                    if (!lfSnap.exists()) throw "Lifafa not found!";
+                    if (claimSnap.exists()) throw "Aapne ye pehle hi claim kar liya hai!";
+                    
+                    const lf = lfSnap.data();
+                    if (lf.claimedUsers >= lf.totalUsers) throw "Sorry! Lifafa poora claim ho chuka hai.";
+
+                    // 2. Claim karne wale ka balance badhana
+                    const newBalance = Number(userSnap.data().balance) + Number(lf.perAmount);
+                    transaction.update(userRef, { balance: newBalance });
+
+                                        // 🚀 Claimer ki History (P2P Style)
+                    const claimHistoryRef = doc(collection(db, "transactions"));
+                    transaction.set(claimHistoryRef, {
+                        userPhone: myPhone,
+                        sender: "Lifafa System",
+                        amount: Number(lf.perAmount),
+                        type: 'LIFAFA_CLAIM',
+                        status: 'SUCCESS',
+                        date: new Date().toLocaleString('en-IN'),
+                        timestamp: Date.now()
+                    });
+
+                    // 🚀 REFERRAL BONUS ENGINE (Smart Check Fix)
+                    if (refUserSnap && refUserSnap.exists() && lf.referral && lf.referral.creatorGets > 0) {
+                        console.log("Referrer ko paisa mil raha hai:", refPhone);
+                        
+                        const refBonus = Number(lf.referral.creatorGets);
+                        
+                        // Dost ka balance update
+                        transaction.update(refUserRef, { 
+                            balance: increment(refBonus) 
+                        });
+
+                        // Dost ki history update (Dashboard style match)
+                        const refHistoryRef = doc(collection(db, "transactions"));
+                        transaction.set(refHistoryRef, {
+                            userPhone: refPhone,
+                            sender: "Referral Bonus",
+                            amount: refBonus,
+                            type: 'REFER_BONUS',
+                            status: 'SUCCESS',
+                            date: new Date().toLocaleString('en-IN'),
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        console.log("Referral skip: Ya toh number galat hai ya banda registered nahi hai.");
+                    }
+
+                    // 5. Update Lifafa Claim Count aur Record
+                    transaction.update(lfRef, { claimedUsers: lf.claimedUsers + 1 });
+                    transaction.set(claimRef, {
+                        phone: myPhone,
+                        amount: lf.perAmount,
+                        claimedAt: serverTimestamp()
+                    });
+                });
+
+                Swal.fire({
+                    title: `₹${lifafaData.perAmount} Received! 💸`,
+                    text: "Mubarak ho! Paise aapke wallet mein add ho gaye hain.",
+                    icon: "success"
+                }).then(() => {
+                    window.location.href = 'index.html';
+                });
+
+            } catch (err) {
+                Swal.fire("Failed", err.toString(), "error");
+                btn.disabled = false;
+                btn.innerHTML = 'CLAIM NOW';
+            }
+        });
+    </script>
+</body>
+</html>
+

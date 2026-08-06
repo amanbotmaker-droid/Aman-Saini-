@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bulk Transfer - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #050505; color: white; }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        .gold { color: #f59e0b; }
+        /* VIP GOLD SPIN LOADER */
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-left-color: #f59e0b; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        textarea:focus { border-color: #f59e0b !important; outline: none; box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+    </style>
+</head>
+<body class="flex justify-center">
+
+    <div class="w-full max-w-md min-h-screen border-x border-slate-900 pb-20 relative">
+        <div id="global-loader" class="hidden absolute inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center">
+            <div class="loader !block mb-4"></div>
+            <p class="text-[10px] font-black tracking-widest text-yellow-500 uppercase animate-pulse">Processing Bulk VIP Request...</p>
+        </div>
+
+        <div class="p-5 flex items-center border-b border-white/5 sticky top-0 bg-black/80 z-50">
+            <button onclick="window.location.href='index.html'" class="h-10 w-10 glass rounded-full flex items-center justify-center mr-4 gold active:scale-90 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h1 class="text-xs font-black uppercase gold tracking-[2px]">Bulk Payout</h1>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <div class="glass p-5 rounded-[2rem] border-yellow-500/20 border-l-4 border-l-yellow-500">
+                <h3 class="text-[10px] font-black uppercase gold mb-1">Mass Transfer Mode</h3>
+                <p class="text-[10px] text-gray-500 leading-relaxed uppercase tracking-tighter">Enter numbers with or without +91. <br>Format: <span class="white font-bold">Number,Amount</span></p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">Payout List</label>
+                    <textarea id="bulk-data" rows="8" placeholder="9876543210,10&#10;+918877665544,50" 
+                        class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-mono focus:border-yellow-500 transition-all text-yellow-500/80"></textarea>
+                </div>
+
+                <div class="bg-yellow-500/5 p-4 rounded-2xl border border-yellow-500/10 flex justify-between items-center">
+                    <span class="text-[10px] font-black text-gray-500 uppercase">Valid Records</span>
+                    <span id="record-count" class="gold font-black">0</span>
+                </div>
+
+                <button onclick="startBulkProcess()" id="bulk-btn" class="w-full bg-yellow-500 text-black font-black py-4 rounded-2xl shadow-lg shadow-yellow-600/20 active:scale-95 transition-all uppercase tracking-widest text-xs">
+                    Execute Bulk Payout
+                </button>
+            </div>
+
+            <div id="progress-box" class="hidden glass p-5 rounded-[2rem] border border-white/10 space-y-4">
+                <div class="flex justify-between text-[10px] font-black uppercase">
+                    <span id="status-text" class="text-sky-400 italic">Starting...</span>
+                    <span id="percent" class="gold">0%</span>
+                </div>
+                <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 w-0 transition-all duration-300"></div>
+                </div>
+                <p id="current-user-task" class="text-[9px] text-center text-gray-500 font-bold uppercase"></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc, increment, collection, addDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA6mIZMGZ3mAgJ4yppLcquQuZLA-b3zDGk",
+            authDomain: "kingwallet-d300d.firebaseapp.com",
+            projectId: "kingwallet-d300d",
+            storageBucket: "kingwallet-d300d.firebasestorage.app",
+            messagingSenderId: "79592887664",
+            appId: "1:79592887664:web:fadf1e6ed0b56c70baabb5"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const myPhone = localStorage.getItem('userPhone');
+
+        // Real-time record counter
+        document.getElementById('bulk-data').addEventListener('input', (e) => {
+            const lines = e.target.value.trim().split('\n').filter(l => l.includes(','));
+            document.getElementById('record-count').innerText = lines.length;
+        });
+
+        window.startBulkProcess = async () => {
+            const rawData = document.getElementById('bulk-data').value.trim();
+            if(!rawData) return alert("Data dalo bhai!");
+
+            const lines = rawData.split('\n').filter(l => l.includes(','));
+            if(lines.length === 0) return alert("Format sahi nahi hai!");
+
+            if(!confirm(`Kya aap ${lines.length} VIP transfers process karna chahte hain?`)) return;
+
+            // UI Changes - SPIN START
+            document.getElementById('global-loader').classList.remove('hidden');
+            document.getElementById('progress-box').classList.remove('hidden');
+
+            let success = 0;
+            let failed = 0;
+
+            for(let i=0; i < lines.length; i++) {
+                const [rawPhone, amtStr] = lines[i].split(',');
+                const amount = parseFloat(amtStr);
+                let ph = rawPhone.trim();
+                
+                // --- SMART NUMBER VERIFY LOGIC ---
+                let searchPhone1 = ph; // as entered
+                let searchPhone2 = ph.length === 10 ? "+91" + ph : ph; // auto +91
+                
+                document.getElementById('current-user-task').innerText = `Verifying: ${ph}`;
+
+                try {
+                    await runTransaction(db, async (transaction) => {
+                        const myRef = doc(db, "users", myPhone);
+                        
+                        // First check phone 1
+                        let toRef = doc(db, "users", searchPhone1);
+                        let toDoc = await transaction.get(toRef);
+                        
+                        // If not found, check phone 2 (+91)
+                        if(!toDoc.exists() && ph.length === 10) {
+                            toRef = doc(db, "users", searchPhone2);
+                            toDoc = await transaction.get(toRef);
+                        }
+
+                        if(!toDoc.exists()) throw "User Not Found";
+                        
+                        const myDoc = await transaction.get(myRef);
+                        if(myDoc.data().balance < amount) throw "Insufficient Balance";
+                        if(toRef.id === myPhone) throw "Self Transfer Not Allowed";
+
+                        transaction.update(myRef, { balance: increment(-amount) });
+                        transaction.update(toRef, { balance: increment(amount) });
+
+                        // Log Transaction
+                        const txnCol = collection(db, "transactions");
+                        const exactTime = new Date().toLocaleString('en-IN');
+                        const newTxnRef = doc(collection(db, "temp")); // Just for ID
+                        
+                        transaction.set(doc(txnCol), { userPhone: myPhone, receiver: toRef.id, amount: amount, type: 'SEND', status: 'SUCCESS', date: exactTime, timestamp: Date.now() });
+                        transaction.set(doc(txnCol), { userPhone: toRef.id, sender: myPhone, amount: amount, type: 'RECEIVE', status: 'SUCCESS', date: exactTime, timestamp: Date.now() });
+                    });
+                    success++;
+                } catch (e) {
+                    console.log(`Failed for ${ph}: ${e}`);
+                    failed++;
+                }
+
+                // Update Progress UI
+                const p = Math.round(((i + 1) / lines.length) * 100);
+                document.getElementById('progress-bar').style.width = p + '%';
+                document.getElementById('percent').innerText = p + '%';
+                document.getElementById('status-text').innerText = `Success: ${success} | Failed: ${failed}`;
+            }
+
+            // SPIN STOP
+            document.getElementById('global-loader').classList.add('hidden');
+            alert(`KING BULK PAYOUT COMPLETE!\n✅ SUCCESS: ${success}\n❌ FAILED: ${failed}`);
+            location.reload();
+        };
+    </script>
+</body>
+</html>

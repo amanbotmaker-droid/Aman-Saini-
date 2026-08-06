@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P2P Transfer - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .loader { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #eab308; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .success-bounce { animation: bounce 0.5s ease-out; }
+        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+    </style>
+        <!-- 👑 MASTER THEME ENGINE 👑 -->
+    <script>
+    (function() {
+        // 10+ VIP Colors Setup
+        const themes = {
+            'gold': { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' },
+            'skyblue': { 300: '#e0f2fe', 400: '#7dd3fc', 500: '#0ea5e9', 600: '#0284c7' }, // Tera Favourite
+            'emerald': { 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+            'pink': { 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+            'purple': { 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+            'red': { 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            'cyan': { 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            'orange': { 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c' },
+            'blue': { 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' },
+            'silver': { 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569' }
+        };
+
+        const currentTheme = localStorage.getItem('king_theme') || 'gold';
+        const t = themes[currentTheme];
+
+        // Agar theme Gold nahi hai, toh automatic CSS inject karke pure app ka colour badal do
+        if (currentTheme !== 'gold') {
+            const style = document.createElement('style');
+            style.id = 'vip-theme-engine';
+            style.innerHTML = `
+                :root { --t-300: ${t[300]}; --t-400: ${t[400]}; --t-500: ${t[500]}; --t-600: ${t[600]}; }
+                
+                /* Text Overrides */
+                .text-yellow-300, .text-yellow-400 { color: var(--t-400) !important; }
+                .text-yellow-500, .gold { color: var(--t-500) !important; }
+                .text-yellow-600 { color: var(--t-600) !important; }
+                .text-yellow-500\\/70 { color: color-mix(in srgb, var(--t-500) 70%, transparent) !important; }
+                .text-yellow-500\\/80 { color: color-mix(in srgb, var(--t-500) 80%, transparent) !important; }
+                
+                /* Background Overrides */
+                .bg-yellow-400 { background-color: var(--t-400) !important; }
+                .bg-yellow-500 { background-color: var(--t-500) !important; }
+                .bg-yellow-600 { background-color: var(--t-600) !important; }
+                .bg-yellow-500\\/10 { background-color: color-mix(in srgb, var(--t-500) 10%, transparent) !important; }
+                .bg-yellow-500\\/20 { background-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Border & Gradient Overrides */
+                .border-yellow-400 { border-color: var(--t-400) !important; }
+                .border-yellow-500 { border-color: var(--t-500) !important; }
+                .border-yellow-600 { border-color: var(--t-600) !important; }
+                .border-yellow-500\\/20 { border-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                .border-yellow-500\\/30 { border-color: color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                .border-yellow-500\\/50 { border-color: color-mix(in srgb, var(--t-500) 50%, transparent) !important; }
+                
+                .from-yellow-300 { --tw-gradient-from: var(--t-300) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-400 { --tw-gradient-from: var(--t-400) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-500 { --tw-gradient-from: var(--t-500) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .to-yellow-600 { --tw-gradient-to: var(--t-600) !important; }
+                .to-yellow-500 { --tw-gradient-to: var(--t-500) !important; }
+                
+                /* Shadows & Glows */
+                [class*="shadow-[0_0_10px_rgba(234,179,8"] { box-shadow: 0 0 10px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_15px_rgba(245,158,11"] { box-shadow: 0 0 15px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_20px_rgba(245,158,11"] { box-shadow: 0 0 20px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_10px_30px_rgba(234,179,8"] { box-shadow: 0 10px 30px color-mix(in srgb, var(--t-500) 15%, transparent) !important; }
+                [class*="shadow-[0_0_40px_rgba(234,179,8"] { box-shadow: 0 0 40px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_5px_15px_rgba(234,179,8"] { box-shadow: 0 5px 15px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Extra Specific fixes */
+                .theme-icon-dynamic { color: var(--t-500) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        window.setKingTheme = (themeName) => {
+            localStorage.setItem('king_theme', themeName);
+            window.location.reload(); // Set hote hi turant page refresh hokar naya colour aayega
+        }
+    })();
+    </script>
+</head>
+<body class="bg-black text-white font-sans flex justify-center min-h-screen">
+
+    <div class="w-full max-w-md bg-slate-950 min-h-screen relative shadow-2xl overflow-hidden pb-10">
+        
+        <div class="px-6 py-5 flex items-center glass-card sticky top-0 z-50">
+            <button onclick="window.location.href='index.html'" class="h-10 w-10 rounded-full glass-card flex items-center justify-center mr-4 active:scale-90 transition">
+                <i class="fa-solid fa-arrow-left text-blue-500"></i>
+            </button>
+            <h1 class="text-lg font-black text-white uppercase tracking-widest">PAY 2 USER</h1>
+        </div>
+
+        <div id="transfer-form" class="px-6 mt-10">
+            <div class="text-center mb-8">
+                <p class="text-gray-400 text-[10px] font-black tracking-[3px] uppercase mb-2">Your Balance</p>
+                <h2 id="my-balance" class="text-4xl font-black text-white">₹...</h2>
+            </div>
+
+            <div class="mb-6">
+                <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Recipient Phone</label>
+                <div class="glass-card rounded-2xl p-2 flex items-center mt-2 border border-slate-800">
+                    <div class="w-12 h-12 bg-yellow-600/10 rounded-xl flex items-center justify-center text-yellow-500 mr-3">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
+                    <input type="number" id="receiver-phone" oninput="window.verifyReceiver()" placeholder="Receiver's Number" class="bg-transparent w-full text-sm font-bold focus:outline-none text-white placeholder-gray-700">
+                </div>
+                <p id="receiver-name" class="text-[10px] mt-2 ml-2 font-bold"></p>
+            </div>
+
+            <div class="mb-8">
+                <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Amount to Send</label>
+                <div class="glass-card rounded-2xl p-2 flex items-center mt-2 border border-slate-800">
+                    <div class="w-12 h-12 bg-green-600/10 rounded-xl flex items-center justify-center text-sky-400 mr-3">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                    </div>
+                    <input type="number" id="transfer-amount" placeholder="0.00" class="bg-transparent w-full text-xl font-black focus:outline-none text-white">
+                </div>
+            </div>
+
+                        <div class="mb-6">
+                <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Add Comment (Optional)</label>
+                <div class="glass-card rounded-2xl p-2 flex items-center mt-2 border border-slate-800">
+                    <div class="w-12 h-12 bg-purple-600/10 rounded-xl flex items-center justify-center text-purple-400 mr-3">
+                        <i class="fa-solid fa-comment-dots"></i>
+                    </div>
+                    <input type="text" id="transfer-comment" placeholder="What's this for?" class="bg-transparent w-full text-xl font-bold text-white outline-none">
+                </div>
+            </div>
+
+            <button onclick="window.processTransfer()" id="send-btn" class="w-full bg-gradient-to-r from-yellow-600 to-yellow-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-600/30 active:scale-95 transition-all flex justify-center items-center gap-3">
+                SEND MONEY <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+
+        <div id="loading-screen" class="hidden absolute inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center">
+            <div class="loader mb-4"></div>
+            <p class="text-xs font-black tracking-widest text-blue-500 animate-pulse">PROCESSING...</p>
+        </div>
+
+    <div id="success-screen" class="hidden absolute inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-start p-6 overflow-y-auto w-full min-h-screen">
+        
+        <div class="flex flex-col items-center mt-6">
+            <div class="h-16 w-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(34,197,94,0.3)] border border-green-500/50">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 class="text-xl font-black text-white tracking-widest uppercase">Payment Successful</h2>
+        </div>
+
+        <div class="w-full glass-card rounded-3xl p-6 mt-6 border border-slate-800 relative shadow-2xl">
+            <div class="text-center border-b border-slate-800/80 pb-5 mb-5">
+                <div class="bg-slate-800 inline-block px-3 py-1 rounded-lg text-[10px] font-black text-rose-400 mb-3 tracking-widest uppercase"><i class="fa-solid fa-arrow-up mr-1"></i> Money Sent</div>
+                <h3 id="rcpt-name" class="text-2xl font-black text-white capitalize">King User</h3>
+                <p id="rcpt-phone" class="text-slate-400 text-sm font-bold mt-1">Number</p>
+                
+                <h1 id="rcpt-amount" class="text-5xl font-black text-rose-500 mt-4">-₹0.00</h1>
+                
+                <div class="bg-slate-900 rounded-xl py-2 px-4 mt-4 inline-flex items-center justify-center gap-2 border border-slate-700 w-full">
+                    <span id="rcpt-txn" class="text-slate-300 text-xs font-mono tracking-wider font-bold">TXN...</span>
+                    <i class="fa-regular fa-copy text-slate-500 text-[10px] ml-2"></i>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm font-medium">
+                <div class="flex justify-between items-center"><span class="text-slate-500">Type</span><span class="text-slate-200">Debit</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">Category</span><span class="text-slate-200">P2P Wallet Transfer</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">Date & Time</span><span id="rcpt-datetime" class="text-slate-200 font-bold text-xs">--</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">Balance After</span><span id="rcpt-bal" class="text-slate-200 font-bold">--</span></div>
+            </div>
+
+            <div class="mt-5 bg-slate-900 rounded-xl p-4 border border-slate-800">
+                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider mb-1 block">Comment / Note</span>
+                <p id="rcpt-note" class="text-slate-300 italic font-semibold text-sm">--</p>
+            </div>
+        </div>
+
+        <button onclick="window.location.href='index.html'" class="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-black py-4 rounded-xl text-sm tracking-widest shadow-[0_0_15px_rgba(202,138,4,0.3)] mt-8 mb-6">
+            DONE
+        </button>
+    </div>
+        
+    </div>
+
+<script type="module">
+    // 1. SMART IMPORT (Is ek line se niche ka saara code bina window. ke chalega)
+    import { db, doc, getDoc, updateDoc, collection, addDoc, increment, runTransaction,serverTimestamp } from "/js/Backend.js";
+
+    // 2. Global Safety (Sirf un buttons ke liye jisme HTML me onclick likha hai)
+    window.db = db;
+    window.doc = doc;
+    window.getDoc = getDoc;
+    window.updateDoc = updateDoc;
+    window.collection = collection;
+    window.addDoc = addDoc;
+    window.increment = increment;
+    window.runTransaction = runTransaction;
+    window.serverTimestamp = serverTimestamp;
+    
+    const myPhone = localStorage.getItem('userPhone');
+
+        // 1. Balance Load
+        async function loadMyBalance() {
+            if(!myPhone) return;
+            const docSnap = await getDoc(doc(db, "users", myPhone));
+            if(docSnap.exists()) {
+                document.getElementById('my-balance').innerText = "₹" + (docSnap.data().balance || 0).toFixed(2);
+            }
+        }
+        loadMyBalance();
+
+        // 2. SMART VERIFY RECEIVER
+        window.verifyReceiver = async () => {
+            let ph = document.getElementById('receiver-phone').value.trim();
+            const nameEl = document.getElementById('receiver-name');
+            
+            if(ph.length >= 10) {
+                nameEl.innerText = "🔍 Verifying...";
+                nameEl.className = "text-[10px] mt-2 ml-2 font-bold text-yellow-500 animate-pulse";
+                
+                let searchPhone1 = ph; 
+                let searchPhone2 = ph.length === 10 ? "+91" + ph : ph; 
+
+                try {
+                    let docSnap = await getDoc(doc(db, "users", searchPhone1));
+                    if(!docSnap.exists() && ph.length === 10) {
+                        docSnap = await getDoc(doc(db, "users", searchPhone2));
+                    }
+
+                    if(docSnap.exists()) {
+                        nameEl.innerText = "✅ Verified: " + (docSnap.data().name || "User Found");
+                        nameEl.className = "text-[10px] mt-2 ml-2 font-black text-green-500";
+                        window.finalReceiverPhone = docSnap.id; 
+                    } else {
+                        nameEl.innerText = "❌ User Not Found!";
+                        nameEl.className = "text-[10px] mt-2 ml-2 font-black text-red-500";
+                        window.finalReceiverPhone = null;
+                    }
+                } catch (e) { console.log(e); }
+            } else { nameEl.innerText = ""; window.finalReceiverPhone = null; }
+        };
+
+        // 3. PROCESS TRANSFER & HISTORY
+        window.processTransfer = async () => {
+            const toPh = window.finalReceiverPhone;
+            const amt = Number(document.getElementById('transfer-amount').value);
+            const commentInput = document.getElementById('transfer-comment') ? document.getElementById('transfer-comment').value.trim() : "";
+            const txnComment = commentInput === "" ? "P2P Wallet Transfer" : commentInput;
+            const finalTxnId = "TXN" + Math.floor(100000000 + Math.random() * 900000000);
+            
+            if(!toPh || amt <= 0) return alert("Sahi Number aur Amount dalo!");
+            if(toPh === myPhone) return alert("Apne aap ko paise nahi bhej sakte!");
+
+            document.getElementById('loading-screen').classList.remove('hidden');
+
+            try {
+                const myRef = doc(db, "users", myPhone);
+                const toRef = doc(db, "users", toPh);
+
+                // --- Direct Firebase Transaction (No Google Script needed) ---
+    await runTransaction(db, async (transaction) => {
+        const sDoc = await transaction.get(myRef);
+        const rDoc = await transaction.get(toRef);
+
+        if (!sDoc.exists()) throw "Sender account not found!";
+        if (!rDoc.exists()) throw "Receiver account not found!";
+
+        const sBal = Number(sDoc.data().balance || 0);
+        const rBal = Number(rDoc.data().balance || 0);
+
+        if (sBal < amt) throw "Insufficient Balance!";
+
+        // Balance Update karo
+        transaction.update(myRef, { balance: sBal - amt });
+        transaction.update(toRef, { balance: rBal + amt });
+    });
+    // --- Transaction khatam, ab niche ka code history banayega ---
+
+                    const txnCol = collection(db, "transactions");
+                    const exactTime = new Date().toLocaleString('en-IN');
+                    
+                    // SENDER ENTRY
+                    await addDoc(txnCol, { userPhone: myPhone, receiver: toPh, amount: amt, type: 'SEND', status: 'SUCCESS', date: exactTime, timestamp: Date.now(), txnComment: txnComment, txnId: finalTxnId });
+                    // RECEIVER ENTRY
+                    await addDoc(txnCol, { userPhone: toPh, sender: myPhone, amount: amt, type: 'RECEIVE', status: 'SUCCESS', date: exactTime, timestamp: Date.now(), txnComment: txnComment, txnId: finalTxnId });
+
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('success-screen').classList.remove('hidden');
+
+                        // 🚀 --- P2P VIP BOT ALERTS (CREDIT & DEBIT) --- 🚀
+        try {
+            const botToken = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY";
+            const url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
+            
+            const timeNow = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            const dateNow = new Date().toLocaleDateString('en-IN');
+            
+                    // Taaza data direct Firebase se uthao
+            const sSnap = await getDoc(doc(db, "users", myPhone));
+            const rSnap = await getDoc(doc(db, "users", toPh));
+
+            const senderData = sSnap.data();
+            const recData = rSnap.data();
+
+            const senderId = senderData.tgId || senderData.Tgid || senderData.tgid;
+            const receiverId = recData.tgId || recData.Tgid || recData.tgid;
+
+                  // Naya balance direct database se utha liya
+            const senderNewBal = senderData.balance;
+            const receiverNewBal = recData.balance;
+                        // 🚀 --- UI RECEIPT FILLING ENGINE --- 🚀
+            document.getElementById('rcpt-name').innerText = recData.name || "King User";
+            document.getElementById('rcpt-phone').innerText = toPh;
+            document.getElementById('rcpt-amount').innerText = "-₹" + Number(amt).toFixed(2);
+            document.getElementById('rcpt-txn').innerText = finalTxnId; 
+            document.getElementById('rcpt-datetime').innerText = dateNow + ", " + timeNow; 
+            document.getElementById('rcpt-bal').innerText = "₹" + senderNewBal;
+            document.getElementById('rcpt-note').innerText = txnComment; 
+            // 🚀 ----------------------------------- 🚀
+
+
+            // 1. 💸 DEBIT ALERT (PAISA BHEJNE WALE KO)
+            if (senderId) {
+                let debitMsg = "<b><tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji> KING WALLET P2P <tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji></b>\n\n<tg-emoji emoji-id='6267225207560214192'>✅</tg-emoji> <b>AMOUNT SENT SUCCESSFULLY!</b>\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6208612201188561446'>📥</tg-emoji> <b>Sent To:</b> " + toPh + "\n<tg-emoji emoji-id='6183449899061745992'>💵</tg-emoji> <b>Amount:</b> ₹" + amt + "\n<tg-emoji emoji-id='5253742260054409879'>📨</tg-emoji> <b>Txn ID:</b> " + finalTxnId + "\n<tg-emoji emoji-id='5443038326535759644'>💬</tg-emoji> <b>Comment:</b> " + txnComment + "\n<tg-emoji emoji-id='6280367008622055878'>📈</tg-emoji> <b>Updated Balance:</b> ₹" + senderNewBal + "\n<tg-emoji emoji-id='5440621591387980068'>🕒</tg-emoji> <b>Time:</b> " + timeNow + " | " + dateNow + "\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6129731845442510016'>🔐</tg-emoji> <i>Processed Securely.</i>";
+                
+                fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: senderId, text: debitMsg, parse_mode: "HTML" }) });
+            }
+
+            // 2. ✅ CREDIT ALERT (PAISA LENE WALE KO)
+            if (receiverId) {
+                let creditMsg = "<b><tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji> KING WALLET P2P <tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji></b>\n\n<tg-emoji emoji-id='6267225207560214192'>✅</tg-emoji> <b>AMOUNT RECEIVED SUCCESSFULLY!</b>\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6208612201188561446'>📥</tg-emoji> <b>From:</b> " + myPhone + "\n<tg-emoji emoji-id='6183449899061745992'>💵</tg-emoji> <b>Amount:</b> ₹" + amt + "\n<tg-emoji emoji-id='5253742260054409879'>📨</tg-emoji> <b>Txn ID:</b> " + finalTxnId + "\n<tg-emoji emoji-id='5443038326535759644'>💬</tg-emoji> <b>Comment:</b> " + txnComment + "\n<tg-emoji emoji-id='6280367008622055878'>📈</tg-emoji> <b>Updated Balance:</b> ₹" + receiverNewBal + "\n<tg-emoji emoji-id='5440621591387980068'>🕒</tg-emoji> <b>Time:</b> " + timeNow + " | " + dateNow + "\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6129731845442510016'>🔐</tg-emoji> <i>Processed Securely.</i>";
+                
+                fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: receiverId, text: creditMsg, parse_mode: "HTML" }) });
+            }
+        } catch (alertErr) {
+            alert("Bot Error: " + alertErr.message);
+        }
+        // 🚀 ------------------------------------------------ 🚀
+
+            } catch (e) {
+                document.getElementById('loading-screen').classList.add('hidden');
+                alert("Error: " + e);
+            }
+        };
+    </script>
+</body>
+</html>

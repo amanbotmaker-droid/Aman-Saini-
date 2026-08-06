@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>King Wallet — VIP Withdraw</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Tera wahi same VIP Black + Sky Blue Theme CSS yahan rahega (Code chota karne ke liye style hide kiya hai, tu apna pura CSS daalna jo tune upar bheja tha) */
+        body { font-family:'DM Sans',sans-serif; background:#060a10; color:#d8f4ff; }
+        /* Baaki sab same CSS rakhna */
+    </style>
+</head>
+<body>
+    <div class="hdr">
+        <button class="hdr-back" onclick="go('index.html')"><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="hdr-title-wrap">
+            <div class="hdr-title">King <em>Wallet</em></div>
+            <div class="hdr-sub">VIP Instant Withdrawal</div>
+        </div>
+        <div class="hdr-ico"><i class="fa-solid fa-crown"></i></div>
+    </div>
+
+    <div class="wrap">
+        <div class="sec-lbl"><div class="sec-dot"></div>UPI Details</div>
+        <div class="card">
+            <div class="field-wrap">
+                <label class="field-lbl">UPI ID <em>*</em></label>
+                <input type="text" id="upi-id" placeholder="yourname@upi" style="width: 100%; padding: 10px; border-radius: 10px; background: #0a1422; color: #fff; border: 1px solid #00c6ff;">
+            </div>
+        </div>
+
+        <div class="sec-lbl"><div class="sec-dot"></div>Amount</div>
+        <div class="card">
+            <input type="number" id="amount" placeholder="₹0" style="width: 100%; font-size: 24px; padding: 10px; border-radius: 10px; background: #0a1422; color: #fff; border: 1px solid #00c6ff;">
+            <div class="quick-amts" style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="document.getElementById('amount').value=100" style="flex:1; padding:10px; background:#00c6ff; color:#000; border:none; border-radius:8px; font-weight:bold;">₹100</button>
+                <button onclick="document.getElementById('amount').value=500" style="flex:1; padding:10px; background:#00c6ff; color:#000; border:none; border-radius:8px; font-weight:bold;">₹500</button>
+            </div>
+        </div>
+
+        <button class="submit-btn" id="submit-btn" onclick="initiateWithdraw()" style="width: 100%; padding: 15px; background: linear-gradient(135deg,#0096cc 0%,#00c6ff 100%); border: none; border-radius: 15px; color: #000; font-weight: bold; font-size: 16px; margin-top: 20px;">
+            <i class="fa-solid fa-paper-plane"></i> Withdraw via UPI
+        </button>
+    </div>
+
+    <script>
+        const CONFIG = {
+            // 👇 Yahan apna asli render link zarur daalna
+            API_BASE: 'https://king-wallet-bot.onrender.com', 
+            MIN_AMT: 10,
+            MAX_AMT: 50000
+        };
+
+        // 🔥 USER AUTHENTICATION: LocalStorage se logged-in user ka ID nikalna
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const tgId = user.tgId || user.id || null; // Tera system jo bhi save karta hai
+
+        if (!tgId) {
+            alert("⚠️ User not logged in! Pehle dashboard me login karo.");
+            window.location.href = 'index.html'; // Login page par bhej dega
+        }
+
+        async function initiateWithdraw() {
+            const upiId = document.getElementById('upi-id').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            if (!upiId || !amount) { alert('⚠️ Sahi details daalo Boss!'); return; }
+            if (amount < CONFIG.MIN_AMT) { alert('⚠️ Minimum withdrawal ₹' + CONFIG.MIN_AMT + ' hai.'); return; }
+            if (amount > CONFIG.MAX_AMT) { alert('⚠️ Maximum withdrawal ₹' + CONFIG.MAX_AMT + ' hai.'); return; }
+
+            const btn = document.getElementById('submit-btn');
+            btn.innerHTML = "⏳ Processing...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(CONFIG.API_BASE + '/api/cashfree/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        tgId: String(tgId), 
+                        upi_id: upiId, 
+                        amount: amount 
+                    })
+                });
+
+                const data = await res.json();
+                
+                if (data.status === 'SUCCESS') {
+                    alert('✅ VIP Withdrawal Successful! Paise Cashfree gateway par bhej diye gaye hain.');
+                    document.getElementById('amount').value = '';
+                    document.getElementById('upi-id').value = '';
+                } else {
+                    alert('❌ Withdrawal Failed: ' + data.message);
+                }
+            } catch(e) {
+                alert('⚠️ Server error! Bot down hai ya network issue hai.');
+            }
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Withdraw via UPI';
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>

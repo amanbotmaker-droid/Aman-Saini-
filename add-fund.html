@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Add Fund - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #050505; color: white; font-family: sans-serif; overflow-x: hidden; }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        .gold { color: #f59e0b; }
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-left-color: #f59e0b; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:focus { border-color: #f59e0b !important; outline: none; box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+        .status-pending { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .status-success { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+    </style>
+</head>
+<body class="flex justify-center min-h-screen">
+
+    <div id="global-loader" class="hidden fixed inset-0 bg-black/90 z-[200] flex flex-col items-center justify-center">
+        <div class="loader mb-4"></div>
+        <p class="text-[10px] font-black tracking-[3px] gold uppercase animate-pulse">Syncing with Admin...</p>
+    </div>
+
+    <div class="w-full max-w-md border-x border-white/5 pb-20 relative">
+        <div class="p-5 flex items-center border-b border-white/5 sticky top-0 bg-black/80 z-50">
+            <button onclick="window.location.href='index.html'" class="h-10 w-10 glass rounded-full flex items-center justify-center mr-4 gold active:scale-90 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h1 class="text-xs font-black uppercase gold tracking-[2px]">Deposit Funds</h1>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <div class="glass p-6 rounded-[2.5rem] border-yellow-500/20 border space-y-5">
+                <div class="text-center space-y-1">
+                    <p class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Receiver: kingdipak@fam</p>
+                    <h2 class="text-xs font-black gold uppercase tracking-tighter italic">King Wallet Official Merchant</h2>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-[9px] font-black text-gray-500 uppercase ml-2 tracking-widest">Enter Amount (Min ₹5)</label>
+                    <input type="number" id="amt" min="5" placeholder="₹ 0.00" 
+                        class="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-2xl font-black text-center text-yellow-500">
+                </div>
+
+                <button onclick="processDeposit()" style="width:100%; padding:15px; background:gold; color:black; font-weight:bold; border-radius:10px;">
+                 PAY NOW & SUBMIT
+                </button>
+
+                <p class="text-[8px] text-center text-gray-500 font-bold uppercase tracking-widest">Automatic Redirect to UPI Apps</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h3 class="text-[10px] font-black gold uppercase tracking-widest">Deposit History</h3>
+                    <div class="flex items-center gap-1">
+                        <span class="h-1.5 w-1.5 bg-green-500 rounded-full animate-ping"></span>
+                        <span class="text-[8px] text-gray-500 font-bold uppercase">Live</span>
+                    </div>
+                </div>
+
+                <div id="history-list" class="space-y-3">
+                    <p class="text-center text-[9px] text-gray-600 uppercase py-10 tracking-[3px]">Fetching History...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, query, collection, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ... Firebase Config (Tera purana wala) ...
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const userPh = localStorage.getItem('userPhone');
+
+    // --- STEP 1: LINE BY LINE PROCESS DEPOSIT ---
+    window.processDeposit = async () => {
+    // Line 1: Data check karo
+    const amt = document.getElementById('amt').value;
+    const utr = document.getElementById('utr').value;
+
+    if(!amt || amt < 5) return alert("Min ₹5 dalo");
+    if(!utr || utr.length < 12) return alert("Sahi UTR dalo");
+
+    try {
+        // Line 2: Transaction ID banao
+        const txnId = "TXN" + Date.now();
+        
+        // Line 3: Firebase mein save karo (Old Style)
+        await setDoc(doc(db, "transactions", txnId), {
+            id: txnId,
+            userPhone: localStorage.getItem('userPhone'),
+            amount: Number(amt),
+            utr: utr,
+            status: "PENDING",
+            type: "DEPOSIT",
+            date: new Date().toLocaleString()
+        });
+
+        // Line 4: UPI Redirect (Wait mat karo, seedha bhejo)
+        const upiUrl = `upi://pay?pa=kingdipak@fam&pn=KingWallet&am=${amt}&cu=INR`;
+        window.location.href = upiUrl;
+
+        // Line 5: Confirmation
+        alert("Request Sent to Admin!");
+        
+    } catch (error) {
+        alert("Error: " + error.message);
+    }
+};
+
+    // 7. Loader band karo
+    document.getElementById('global-loader').classList.add('hidden');
+};
+
+    // --- STEP 2: LINE BY LINE HISTORY (Transactions Collection) ---
+    const q = query(collection(db, "transactions"), where("userPhone", "==", userPh), where("type", "==", "DEPOSIT"));
+    
+    onSnapshot(q, (snapshot) => {
+        const historyDiv = document.getElementById('history-list');
+        historyDiv.innerHTML = "";
+        
+        let allTxns = [];
+        snapshot.forEach(doc => allTxns.push(doc.data()));
+        
+        // Latest upar dikhane ke liye sort
+        allTxns.sort((a, b) => b.timestamp - a.timestamp);
+
+        allTxns.forEach((data) => {
+            const isPending = data.status === "PENDING";
+            historyDiv.innerHTML += `
+                <div class="glass p-4 rounded-3xl border-l-4 ${isPending ? 'border-yellow-500/40' : 'border-green-500/40'} mb-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-[12px] font-black gold italic">₹${data.amount.toFixed(2)}</p>
+                            <p class="text-[7px] text-gray-500 uppercase tracking-widest">${data.date}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[8px] font-black uppercase ${isPending ? 'text-yellow-500' : 'text-green-500'}">
+                                ${data.status}
+                            </span>
+                            <p class="text-[7px] text-gray-600 mt-1 font-bold">UTR: ${data.utr}</p>
+                        </div>
+                    </div>
+                </div>`;
+        });
+    });
+</script>
+</body>
+</html>

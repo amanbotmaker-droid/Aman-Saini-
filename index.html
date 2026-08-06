@@ -1,0 +1,2962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KING WALLET</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script type="module">
+    import { db, collection, query, where, getDocs, orderBy, updateDoc, increment, addDoc,onSnapshot, doc,setDoc,limit } from "/api/Backend.js";
+    
+    // Global BOT TOKEN
+    const BOT_TOKEN = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY";
+    window.BOT_TOKEN = BOT_TOKEN;
+
+    // Ye sab window par hona zaroori hai
+    window.db = db;
+window.collection = collection;
+window.query = query;
+window.where = where;
+window.getDocs = getDocs;
+window.orderBy = orderBy;
+window.updateDoc = updateDoc;
+window.increment = increment;
+window.addDoc = addDoc;
+window.onSnapshot = onSnapshot;
+window.doc = doc;
+window.setDoc = setDoc;    
+window.limit = limit;
+    
+    const myPhone = localStorage.getItem('userPhone') || (JSON.parse(localStorage.getItem('ultra_user'))?.phone);
+    // 🚀 OFFLINE MODE: App khulte hi turant balance dikhao (Reads bachenge)
+    const cachedBal = localStorage.getItem('cachedBalance') || '0';
+    setTimeout(() => {
+        const balUI = document.getElementById('main-balance');
+        if (balUI) balUI.innerText = "₹" + Number(cachedBal).toFixed(2);
+    }, 100);
+
+    // 🔄 Dashboard Loader Hatao
+    const hideLoader = () => {
+        const loader = document.getElementById('global-loader');
+        if (loader) loader.classList.add('hidden');
+    };
+
+    // 🔄 DATA SYNC ENGINE
+    if (!myPhone) {
+        hideLoader(); // Agar user login nahi hai toh loader hatao
+    } else {
+        // Real-time Dashboard Sync
+        onSnapshot(doc(db, "users", myPhone), (snapshot) => {
+            if (snapshot.exists()) {
+                const userData = snapshot.data();
+                window.currentUser = userData;
+                localStorage.setItem('ultra_user', JSON.stringify(userData));
+
+                // Balance Update
+                const balElement = document.getElementById('main-balance');
+                if (balElement) {
+                    balElement.innerText = "₹" + (Number(userData.balance) || 0).toFixed(2);
+                    localStorage.setItem('cachedBalance', userData.balance || 0);
+                }
+                hideLoader(); // Data milte hi loading khatam
+            } else {
+                hideLoader();
+            }
+        }, (error) => {
+            console.error("Firebase Connection Error:", error);
+            hideLoader(); // Error aaye toh bhi screen dikhao
+        });
+    }
+    
+    window.sendGiftBotAlert = async (chatId, message) => { 
+       if(!chatId) return; 
+        const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+        try {
+            await fetch(url, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ 
+                    chat_id: chatId, 
+                    text: message, 
+                    parse_mode: "HTML" 
+                })
+            });
+        } catch(e) { console.log("Bot Error:", e); }
+    };
+
+    // ==========================================
+    // VIP SIDEBAR TOGGLE LOGIC (Fixed)
+    // ==========================================
+    // 1. Sidebar Toggle Function
+    window.toggleSidebar = () => {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.toggle('-translate-x-full');
+    };
+
+    // 2. Page Navigation Function (Text aur Loader dono handle karega)
+    window.showLoaderAndGo = (page, loadingText = "KING WALLET LOADING...") => {
+        const loader = document.getElementById('global-loader');
+        const textElement = loader ? loader.querySelector('p') : null;
+        
+        // Loader dikhao aur text set karo
+        if (textElement) textElement.innerText = loadingText;
+        if (loader) loader.classList.remove('hidden');
+        
+        setTimeout(() => {
+            // Screen change karo
+            if (typeof showScreen === 'function' && !page.includes('.html')) {
+                showScreen(page);
+            } else {
+                window.location.href = page;
+            }
+            
+            // Loader chupao aur text wapas normal karo
+            if (loader) loader.classList.add('hidden');
+            if (textElement) textElement.innerText = "KING WALLET LOADING...";
+        }, 1500); // 1.5 second ka delay
+    };
+
+        // 3. Submit Button ka VIP "Verifying" Loader + PIN Modal
+    window.showSubmitLoader = () => {
+        const loader = document.getElementById('global-loader');
+        const textElement = loader ? loader.querySelector('p') : null;
+        
+        // Loader dikhao aur "Verifying" text likho
+        if (textElement) textElement.innerText = "VERIFYING UTR...";
+        if (loader) loader.classList.remove('hidden');
+        
+        setTimeout(() => {
+            // 1.5 second baad loader chupao
+            if (loader) loader.classList.add('hidden');
+            if (textElement) textElement.innerText = "KING WALLET LOADING...";
+            
+            // Loader khatam hote hi PIN mangega
+            window.currentTask = 'DEPOSIT';
+            document.getElementById('pin-modal').classList.remove('hidden');
+        }, 1500); 
+    };
+
+        // Logout Function (Global)
+    window.handleLogout = () => {
+        if(confirm("Bhai, sach mein Logout karna hai?")) {
+            localStorage.clear();
+            window.location.reload();
+        }
+    };
+
+    // 1. Navigation & Sidebar Fix
+    window.goToScratchScreen = () => {
+        // Saari screens ko band karo taaki Receipt na dikhe
+        document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+        const receipt = document.getElementById('receipt-modal');
+        if(receipt) receipt.classList.add('hidden');
+
+        // Loader chalao aur screen badlo
+        window.showLoaderAndGo('scratch-screen', 'SYNCING REWARDS...');
+        window.loadMyRewards();
+    };
+
+    // 2. VIP Scratch Card Logic
+    window.giveNewScratchCard = async () => {
+        const amt = (Math.random() * (1.00 - 0.50) + 0.50).toFixed(2);
+        const cid = "CARD_" + Date.now();
+        try {
+            await setDoc(doc(db, "rewards", cid), {
+                id: cid, userPhone: window.currentUser.phone,
+                amount: Number(amt), status: "UNUSED", timestamp: Date.now()
+            });
+        } catch (e) { console.error(e); }
+    };
+
+    // 3. Claim Reward & Balance Fix
+    window.claimReward = async (cardId, amount, cardElement) => {
+        try {
+            cardElement.style.transform = 'rotateY(180deg)';
+            cardElement.onclick = null;
+            await updateDoc(doc(db, "rewards", cardId), { status: "USED" });
+            
+            let currentBal = parseFloat(window.currentUser.balance) || 0;
+            let newBal = (currentBal + parseFloat(amount)).toFixed(2);
+            
+            window.currentUser.balance = newBal;
+            await updateDoc(doc(db, "users", window.currentUser.phone), { balance: newBal });
+            
+            if(document.getElementById('main-balance')) 
+                document.getElementById('main-balance').innerText = '₹' + newBal;
+        } catch (e) { console.error(e); }
+    };
+
+    // 4. Load Cards (No Backticks for Safety)
+    window.loadMyRewards = async () => {
+        const box = document.getElementById('my-cards-box');
+        if(!box) return;
+        box.innerHTML = '<p class="col-span-2 text-center text-yellow-500 text-[10px] animate-pulse">LOADING...</p>';
+        try {
+            const q = query(collection(db, "rewards"), where("userPhone", "==", window.currentUser.phone));
+            const snap = await getDocs(q);
+            box.innerHTML = '';
+            let total = 0;
+            snap.forEach((d) => {
+                const item = d.data();
+                const used = item.status === 'USED';
+                if(used) total += Number(item.amount);
+                
+                const card = '<div class="relative w-full h-32 rounded-xl" style="perspective:1000px;">' +
+                    '<div class="w-full h-full relative transition-all duration-700" style="transform-style:preserve-3d; ' + (used ? 'transform:rotateY(180deg);' : '') + '" ' + (used ? '' : 'onclick="window.claimReward(\''+item.id+'\','+item.amount+',this)"') + '>' +
+                    '<div class="absolute w-full h-full bg-yellow-500 rounded-xl flex items-center justify-center" style="backface-visibility:hidden;"><i class="fa-solid fa-gift text-2xl text-white"></i></div>' +
+                    '<div class="absolute w-full h-full bg-black border border-green-500 rounded-xl flex items-center justify-center" style="backface-visibility:hidden; transform:rotateY(180deg); flex-direction:column;">' +
+                    '<span class="text-[8px] text-gray-500">' + (used?'CLAIMED':'WON') + '</span>' +
+                    '<span class="text-xl font-bold text-green-400">₹' + item.amount + '</span>' +
+                    '</div></div></div>';
+                box.innerHTML += card;
+            });
+            const totText = document.querySelector('#scratch-screen h1');
+            if(totText) totText.innerText = '₹' + total.toFixed(2);
+        } catch (e) { console.error(e); }
+    };
+
+// --- BOT LOGIC ---
+window.saveTgId = async () => {
+    const tgId = document.getElementById('user-tg-id').value;
+    if(!tgId) return alert("Enter Telegram ID");
+    await updateDoc(doc(db, "users", currentUser.phone), { tgId: tgId });
+    alert("Bot Connected Successfully!");
+    sendBotMsg("", "WELCOME", tgId);
+    showScreen('main-dashboard');
+};
+
+const ADMIN_TG_ID = "8158560910";
+
+async function sendBotMsg(text, type = "GENERAL", specificChatId = null) {
+    try {
+        const activeUser = window.currentUser || JSON.parse(localStorage.getItem('ultra_user'));
+        let chatId = specificChatId;
+
+        // Agar chatId nahi hai, toh local storage se uthao (Fast method)
+        if (!chatId && activeUser) {
+            chatId = activeUser.tgId; 
+        }
+        
+        if (!chatId && type !== "ADMIN") return;
+
+        let finalMsg = "";
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        if (type === "WELCOME") {
+            finalMsg = `🌟 Welcome to KING WALLET!\n\n✅ Alerts ACTIVE!`;
+        } else if (type === "DEPOSIT") {
+            finalMsg = `💰 Add Fund Request!\n\n📱 Number: ${activeUser?.phone}\n💰 Amount: ₹${text.amt}\n🎫 Ref: ${text.utr || 'N/A'}`;
+        } else if (type === "WITHDRAW") {
+            finalMsg = `💸 Withdrawal Request!\n\n📱 User: ${activeUser?.phone}\n💰 Amount: ₹${text.amt}\n🆔 UPI: ${text.upi || 'N/A'}`;
+        } else if (type === "ADMIN") {
+            chatId = "8158560910"; // Aapki Admin ID
+            finalMsg = `👑 ADMIN ALERT\n👤 User: ${text.phone}\n🛠 Action: ${text.action}\n💰 Amount: ₹${text.amt}`;
+        }    else {
+        finalMsg = text;
+        }
+
+        // Fetch ko bina 'await' ke rakhte hain taaki app na ruke
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(finalMsg)}`)
+        .catch(e => console.log("Bot fetch error ignored"));
+
+    } catch (err) {
+        console.error("Critical Bot Error:", err);
+    }
+}
+
+// --- NAYA VIP NAVIGATION (0 to 100% Progress Bar) ---
+window.showScreen = (id) => {
+    const loader = document.getElementById('global-loader');
+    const pctText = document.getElementById('loader-pct');
+    const fillBar = document.getElementById('loader-fill');
+    const statusText = document.getElementById('loader-status-text');
+
+    // 1. Loader Start Karo aur naam update karo
+    if(loader) loader.classList.remove('hidden');
+    if(statusText) statusText.innerText = "ACCESSING " + id.replace('-screen', '').replace('-', ' ').toUpperCase() + "...";
+    
+    let progress = 0;
+    if(fillBar) fillBar.style.width = '0%';
+    if(pctText) pctText.innerText = '0%';
+
+    // 2. Fast Percentage Animation (Jadoo)
+    const animateLoad = setInterval(() => {
+        progress += Math.floor(Math.random() * 25) + 15; // Fast Speed
+        if(progress > 100) progress = 100;
+        
+        if(pctText) pctText.innerText = progress + '%';
+        if(fillBar) fillBar.style.width = progress + '%';
+
+        // 3. 100% Hone par aage badho
+        if(progress === 100) {
+            clearInterval(animateLoad);
+            
+            setTimeout(() => {
+                // ==========================================
+                // --- TERA PURANA NAVIGATION LOGIC SHURU ---
+                // ==========================================
+                
+                // 1. Saari screens chhupao (VIP MAGIC FIX)
+                document.querySelectorAll('.app-screen').forEach(s => {
+                    s.classList.add('hidden');
+                    s.style.display = 'none';
+                });
+                
+                const target = document.getElementById(id);
+                if(target) {
+                    // MAGIC LINE
+                    document.body.appendChild(target); 
+                    target.classList.remove('hidden');
+                    target.style.display = 'block'; 
+                } else {
+                    alert("❌ Bhai, '" + id + "' ka HTML code missing hai! Ek baar HTML check kar.");
+                }
+
+                // 2. Sidebar band karo
+                const sidebar = document.getElementById('sidebar');
+                if(sidebar) sidebar.classList.add('-translate-x-full');
+
+                // --- BALANCE UPDATE LOGIC ---
+                const balDisplay = "₹" + (Number(window.currentUser.balance) || 0).toFixed(2);
+                if (id === 'withdraw-screen') {
+                    const el = document.getElementById('withdraw-avail-bal');
+                    if(el) el.innerText = balDisplay;
+                }
+                if (id === 'pay-screen') {
+                    const el = document.getElementById('pay-avail-bal');
+                    if(el) el.innerText = balDisplay;
+                }
+
+                if(id === 'history-screen') {
+                    const cached = localStorage.getItem('cachedHistory');
+                    const listArea = document.getElementById('history-list');
+                    if(cached && listArea) { listArea.innerHTML = cached; }
+
+                    const lastUpdate = window.lastHistoryUpdate || 0;
+                    const now = Date.now();
+                    if (now - lastUpdate > 120000) { 
+                        console.log("Fetching fresh history...");
+                        if(typeof loadHistory === 'function') loadHistory();
+                        else if(typeof window.loadHistory === 'function') window.loadHistory();
+                        window.lastHistoryUpdate = now;
+                    } else {
+                        console.log("Using cached history to save reads.");
+                    }
+                }
+                
+                if(id === 'admin-panel' && typeof loadAdminData === 'function') loadAdminData();
+
+                // 🚨 API KEY DISPLAY LOGIC 🚨
+                if (id === 'api-screen') {
+                    const key = window.currentUser.apiKey || "NO_KEY_GENERATED_YET";
+                    document.querySelectorAll('.user-api-key-text').forEach(el => el.innerText = key);
+                }
+
+                if(id === 'profile-screen') {
+                    if(typeof window.loadProfileData === 'function') {
+                        window.loadProfileData();
+                    }
+                }
+                // ==========================================
+                // --- TERA PURANA LOGIC YAHAN KHATAM ---
+                // ==========================================
+
+                // 4. Sab background me set hone ke baad Loader Hatao
+                if(loader) loader.classList.add('hidden');
+                
+            }, 300); // 100% par thoda rukega VIP feel ke liye
+        }
+    }, 40); // Har 40ms me update (Ekdum Smooth Fast)
+};
+
+</script>
+<div id="profile-screen" class="app-screen hidden p-6 space-y-6">
+    <button onclick="showScreen('main-dashboard')">
+        <i class="fa-solid fa-arrow-left text-xl text-white"></i>
+    </button>
+
+    <div class="flex flex-col items-center text-center space-y-4">
+        <div class="relative">
+            <img id="profile-img-display" src="16595.png" class="w-28 h-28 rounded-full border-4 border-yellow-500 shadow-2xl">
+            <div class="absolute bottom-0 right-0 bg-yellow-600 p-2 rounded-full border-2 border-black">
+                <i class="fa-solid fa-camera text-[10px] text-white"></i>
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <h2 id="profile-name-display" class="font-black text-2xl uppercase italic text-white">Loading...</h2>
+            <p id="profile-phone-display" class="text-yellow-500 font-mono text-sm opacity-80"></p>
+        </div>
+    </div>
+
+    <div class="glass p-6 rounded-3xl border border-white/10 space-y-4">
+        <div>
+            <label class="text-[10px] uppercase opacity-50 ml-1">Full Name</label>
+            <input type="text" id="edit-name-input" class="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-yellow-500/50 transition" placeholder="Enter Name">
+        </div>
+
+        <button onclick="window.updateProfileName()" class="w-full bg-yellow-600 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg active:scale-95 transition">
+            Update Profile
+        </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div class="glass p-4 rounded-2xl text-center">
+            <p class="text-[8px] uppercase opacity-50">Status</p>
+            <p class="text-emerald-400 font-bold">VERIFIED</p>
+        </div>
+        <div class="glass p-4 rounded-2xl text-center">
+            <p class="text-[8px] uppercase opacity-50">Member Since</p>
+            <p class="text-white font-bold text-[10px]">MARCH 2026</p>
+        </div>
+    </div>
+</div>
+<script type="module">
+    // 1. Backend connection (Line 419)
+    import { db, doc, onSnapshot, updateDoc, getDoc, getCountFromServer } from "/api/Backend.js";
+
+    window.checkUserRank = async () => {
+    if(!window.db || !window.currentUser || !window.currentUser.phone) return;
+    try {
+        const q = window.query(window.collection(window.db, "transactions"), window.where("userPhone", "==", window.currentUser.phone));
+        const snapshot = await getCountFromServer(q); // 🚀 VIP FIX: Sirf count lao, saara data nahi!
+        const count = snapshot.data().count;
+        
+        if(typeof window.updateUserRank === 'function') {
+            window.updateUserRank(count); 
+        }
+    } catch (error) { console.log("Rank count error: ", error); }
+};
+
+    // App load hone ke 1 hours baad automatic rank update
+    setTimeout(() => { window.checkUserRank(); }, 3600000);
+
+        // Profile Loading and Updating Functions
+window.loadProfileData = () => {
+    const user = JSON.parse(localStorage.getItem('ultra_user'));
+    if (user) {
+        // Real-time listener lagao taaki balance turant update ho
+        onSnapshot(doc(db, "users", user.phone), (d) => {
+            if (d.exists()) {
+                const data = d.data();
+                window.currentUser = data; // Global update
+                
+                // HTML mein balance aur naam dikhao (IDs check kar lena)
+                if(document.getElementById('profile-balance')) {
+                    document.getElementById('profile-balance').innerText = "₹" + data.balance;
+                }
+                if(document.getElementById('profile-name-display')) {
+                    document.getElementById('profile-name-display').innerText = data.name;
+                }
+                if(document.getElementById('profile-phone-display')) {
+                    document.getElementById('profile-phone-display').innerText = "+91 " + data.phone;
+                }
+            }
+        });
+    } else {
+        window.location.href = 'login.html';
+    }
+};
+window.updateProfileName = async () => {
+    const newName = document.getElementById('edit-name-input').value;
+    if(newName.length < 3) return alert("Naam thoda bada likho bhai!");
+    try {
+        // User reference define karein
+        const userRef = doc(db, "users", window.currentUser.phone);
+        
+        // Database update karein
+        await updateDoc(userRef, { name: newName });
+        
+        // Local data aur screen update karein
+        window.currentUser.name = newName;
+        document.getElementById('profile-name-display').innerText = newName;
+        
+        alert("Profile Updated! ✅");
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+// --- PIN CHANGE ---
+window.updatePIN = async () => {
+    const np = document.getElementById('new-pin-val').value;
+    if(np.length < 4) return alert("4 Digit PIN needed");
+    await updateDoc(doc(db, "users", currentUser.phone), { pin: np });
+    window.userPin = np;
+    alert("PIN Updated!");
+    showScreen('main-dashboard');
+};
+
+// --- RECEIVER NAME FINDER ---
+window.checkReceiver = async (val) => {
+    const display = document.getElementById('receiver-name-display');
+    // 👇 NAYA JADOO: Live Check karte waqt bhi number me +91 lagao
+    let searchNum = val.trim();
+    if (searchNum.length === 10 && !isNaN(searchNum)) { searchNum = "+91" + searchNum; }
+    else if (searchNum.startsWith("91") && searchNum.length === 12) { searchNum = "+" + searchNum; }
+
+    if (searchNum.length === 13 && searchNum.startsWith("+91")) {
+        const docSnap = await getDoc(doc(db, "users", searchNum));
+        if(docSnap.exists()) {
+            display.innerText = "Receiver: " + docSnap.data().name;
+            display.className = "text-[10px] text-emerald-500 font-bold mt-1";
+            window.validReceiver = true;
+        } else {
+            display.innerText = "User Not Registered!";
+            display.className = "text-[10px] text-red-500 font-bold mt-1";
+            window.validReceiver = false;
+        }
+    } else { display.innerText = ""; window.validReceiver = false; }
+};
+
+    // --- PIN Modal VIP Keyboard Logic ---
+window.addPin = (num) => {
+    const pinInput = document.getElementById('input-pin');
+    if (pinInput.value.length < 4) {
+        pinInput.value += num;
+    }
+};
+
+window.backspacePin = () => {
+    const pinInput = document.getElementById('input-pin');
+    pinInput.value = pinInput.value.slice(0, -1); // Ek-ek karke number katega
+};
+
+    // --- MASTER PIN TRIGGER FUNCTION ---
+window.requirePinFor = (taskName) => {
+    window.currentTask = taskName; // System ko batata hai ki kya kaam karna hai
+    document.getElementById('input-pin').value = ''; // Purana PIN saaf karta hai
+    document.getElementById('pin-modal').classList.remove('hidden'); // Modal open
+};
+
+    // --- DEPOSIT SMART PIN TRIGGER ---
+window.triggerDepositPin = () => {
+    const utr = document.getElementById('dep-utr').value.trim();
+    const amount = document.getElementById('dep-amt').value.trim();
+
+    // 1. Pehle check karo ki details bhari hain ya nahi
+    if (!utr || utr.length !== 12) {
+        return Swal.fire({ title: "Galat UTR! ❌", text: "Pehle sahi 12-digit UTR daalo!", icon: "error", customClass: { popup: 'rounded-3xl' } });
+    }
+    if (!amount || Number(amount) <= 0) {
+        return Swal.fire({ title: "Galat Amount! ⚠️", text: "Pehle sahi Amount enter karein!", icon: "warning", customClass: { popup: 'rounded-3xl' } });
+    }
+
+    // 2. Agar sab theek hai, toh apna Master PIN modal kholo
+    window.requirePinFor('DEPOSIT');
+};
+
+// --- TRANSACTION & KEYBOARD LOGIC ---
+window.handlePIN = async () => {
+    const val = document.getElementById('input-pin').value;
+    const user = window.currentUser || JSON.parse(localStorage.getItem('ultra_user'));
+    const correctPin = user ? user.pin : window.userPin;
+
+    if (val === correctPin || (window.currentTask === 'ADMIN' && val === '9597')) {
+
+        document.getElementById('pin-modal').classList.add('hidden');
+document.getElementById('input-pin').value = "";
+        if (window.currentTask === 'ADMIN') {
+            showScreen('admin-panel');
+        } 
+        // --- DEPOSIT: Isme balance minus NAHI hoga ---
+        else if (window.currentTask === 'DEPOSIT') {
+            window.processDeposit();
+        }
+        // --- WITHDRAW: Isme balance turant MINUS (-) hoga ---
+            else if (window.currentTask === 'WITHDRAW') {
+        const amt = Number(document.getElementById('withdraw-amt').value);
+        const upi = document.getElementById('withdraw-upi').value || 'N/A';
+        const currentBal = window.currentUser.balance || 0;
+        // 🚨 MINIMUM WITHDRAWAL RULE (Line 554-565)
+        if (amt < 10) {
+            document.getElementById('pin-modal').classList.add('hidden');
+            return Swal.fire({
+                title: "Failed! ❌",
+                text: "Bhai, minimum ₹10 withdraw kar sakte hain!",
+                icon: "error",
+                confirmButtonColor: "#ef4444",
+                customClass: { popup: 'rounded-3xl' }
+            });
+        }
+        // 1. Check karo balance hai ya nahi
+                if (amt > currentBal) {
+            document.getElementById('pin-modal').classList.add('hidden');
+            return Swal.fire({
+                title: "Low Balance! ❌",
+                text: "Aapke wallet mein paryapt balance nahi hai!",
+                icon: "error",
+                confirmButtonColor: "#ef4444",
+                customClass: { popup: 'rounded-3xl' }
+            });
+                }
+
+        try {
+                    // 2. Balance pehle minus karo (Safe Maths Engine)
+        let safeBal = parseFloat(window.currentUser.balance) || 0;
+        let newBal = (safeBal - amt).toFixed(2);
+        
+        await updateDoc(doc(db, "users", window.currentUser.phone), { balance: newBal });
+        
+        // Local screen par bhi balance turant update kar do
+        window.currentUser.balance = newBal;
+            
+            // 3. Naye "transactions" folder mein entry karo
+            const txnId = "WTH" + Date.now();
+            await setDoc(doc(db, "transactions", txnId), {
+                id: txnId,
+                userPhone: user.phone,
+                userName: user.name,
+                type: "WITHDRAW",
+                amount: amt,
+                upi: upi,
+                status: "PENDING",
+                timestamp: new Date().getTime(),
+                date: new Date().toLocaleString()
+            });
+
+                    Swal.fire({
+            title: "Request Sent! ⏳",
+            text: "Withdraw Request Sent! Admin process karega.",
+            icon: "success",
+            confirmButtonColor: "#2563eb",
+            confirmButtonText: "OK",
+            allowOutsideClick: false,
+            customClass: { popup: 'rounded-3xl' }
+        });
+            window.sendTelegramAlert(amt, "WITHDRAW", window.currentUser.phone, upi);
+            window.sendUserTelegramAlert(window.currentUser.tgId, amt, "WITHDRAW", "PENDING", upi);
+
+            // UI Update aur Dashboard par wapas
+            document.getElementById('withdraw-amt').value = "";
+            document.getElementById('withdraw-upi').value = "";
+            window.showScreen('main-dashboard');
+            document.getElementById('pin-modal').classList.add('hidden');
+
+            // Agar Telegram Bot message chahiye toh yahan line add kar sakte ho
+            if (typeof sendBotMsg === "function") {
+                sendBotMsg({ amt: amt, upi: upi }, "WITHDRAW");
+            }
+
+        } catch (e) {
+            document.getElementById('pin-modal').classList.add('hidden');
+            Swal.fire({
+                title: "Withdraw Failed! ❌",
+                text: e.message,
+                icon: "error",
+                confirmButtonColor: "#ef4444",
+                customClass: { popup: 'rounded-3xl' }
+            });
+        }
+     }                  
+
+        // --- NAYA P2P (SEND MONEY) LOGIC ---
+        else if (window.currentTask === 'PAY') {
+        // 👇 NAYA JADOO: Number ko uthao aur turant +91 format me badlo
+        let receiverPhone = document.getElementById('pay-phone').value.trim();
+        if (receiverPhone.length === 10 && !isNaN(receiverPhone)) {
+            receiverPhone = "+91" + receiverPhone;
+        } else if (receiverPhone.startsWith("91") && receiverPhone.length === 12) {
+            receiverPhone = "+" + receiverPhone;
+        }
+            alert("Database me number check ho raha hai: " + receiverPhone);
+            const amt = Number(document.getElementById('pay-amt').value);
+
+            // Basic checks
+            if (!receiverPhone || amt <= 0) return alert("Sahi number aur amount daalo!");
+            if (amt > (window.currentUser.balance || 0)) return alert("Insuifficient Balance! ❌");
+            if (receiverPhone === window.currentUser.phone) return alert("Khud ko paise nahi bhej sakte! 😂");
+
+            try {
+                // 1. Check karo receiver exists karta hai ya nahi
+                const receiverDoc = await getDoc(doc(db, "users", receiverPhone));
+                if (!receiverDoc.exists()) return alert("Receiver account nahi mila! ❌");
+
+                // 2. Sender (Tumhare) account se paise kaato (-)
+                await updateDoc(doc(db, "users", window.currentUser.phone), {
+                    balance: increment(-amt)
+                });
+                window.currentUser.balance -= amt; // Local update
+
+                // 3. Receiver ke account mein paise dalo (+)
+                await updateDoc(doc(db, "users", receiverPhone), {
+                    balance: increment(amt)
+                });
+
+        // 👇 4. SENDER ki History (Paisa Gaya)
+        await addDoc(collection(db, "transactions"), {
+            userPhone: window.currentUser.phone,
+            receiver: receiverPhone,
+            amount: Number(amt),
+            type: 'SEND',
+            status: 'SUCCESS',
+            date: new Date().toLocaleString('en-IN'),
+            timestamp: Date.now() // 👈 Yahan Date.now() aayega
+        });
+
+        // 👇 5. RECEIVER ki History (Paisa Aaya)
+        await addDoc(collection(db, "transactions"), {
+            userPhone: receiverPhone,
+            sender: window.currentUser.phone,
+            amount: Number(amt),
+            type: 'RECEIVE',
+            status: 'SUCCESS',
+            date: new Date().toLocaleString('en-IN'),
+            timestamp: Date.now() // 👈 Yahan bhi Date.now() aayega
+        });                
+
+        // 🚀 --- P2P VIP BOT ALERTS (CREDIT & DEBIT) --- 🚀
+        try {
+            const botToken = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY";
+            const url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
+            
+            const timeNow = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            const dateNow = new Date().toLocaleDateString('en-IN');
+            const txnId = "TXN" + Math.floor(100000000 + Math.random() * 900000000); 
+
+            // FIX 1: 'window.currentUser' ki jagah sirf 'currentUser' lagaya hai
+            const senderDoc = await getDoc(doc(db, "users", String(currentUser.phone)));
+            const recData = receiverDoc.data();
+
+            const senderId = senderDoc.exists() ? (senderDoc.data().tgId || senderDoc.data().Tgid || senderDoc.data().tgid) : null;
+            const receiverId = recData.tgId || recData.Tgid || recData.tgid;
+
+            const senderBal = currentUser.balance; 
+            
+            // FIX 2: 'amt' ki jagah tera variable 'amount' lagaya hai
+            const receiverNewBal = (parseFloat(recData.balance || 0) + Number(amount)).toFixed(2);
+
+            // 1. 💸 DEBIT ALERT (PAISA BHEJNE WALE KO)
+            if (senderId) {
+                let debitMsg = "<b>👑 KING WALLET OFFICIAL 👑</b>\n\n💸 <b>AMOUNT SENT SUCCESSFULLY!</b>\n━━━━━━━━━━━━━━━\n📤 <b>Sent To:</b> " + receiverPhone + "\n💵 <b>Amount:</b> ₹" + amount + "\n🧾 <b>Txn ID:</b> " + txnId + "\n🏦 <b>Method:</b> P2P Transfer\n💬 <b>Comment:</b> Wallet Transfer\n📈 <b>Updated Balance:</b> ₹" + senderBal + "\n🕒 <b>Time:</b> " + timeNow + " | " + dateNow + "\n━━━━━━━━━━━━━━━\n🔐 <i>Your transaction has been processed securely.</i>";
+                
+                fetch(url, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chat_id: senderId, text: debitMsg, parse_mode: "HTML" })
+                });
+            }
+
+            // 2. ✅ CREDIT ALERT (PAISA LENE WALE KO)
+            if (receiverId) {
+                let creditMsg = "<b>👑 KING WALLET OFFICIAL 👑</b>\n\n✅ <b>AMOUNT RECEIVED SUCCESSFULLY!</b>\n━━━━━━━━━━━━━━━\n📥 <b>From:</b> " + currentUser.phone + "\n💵 <b>Amount:</b> ₹" + amount + "\n🧾 <b>Txn ID:</b> " + txnId + "\n🏦 <b>Method:</b> P2P Transfer\n💬 <b>Comment:</b> Received via King Wallet\n📈 <b>Updated Balance:</b> ₹" + receiverNewBal + "\n🕒 <b>Time:</b> " + timeNow + " | " + dateNow + "\n━━━━━━━━━━━━━━━\n🔐 <i>Your transaction has been processed securely.</i>";
+                
+                fetch(url, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chat_id: receiverId, text: creditMsg, parse_mode: "HTML" })
+                });
+            }
+        } catch (alertErr) {
+            // Agar koi error aata hai toh yahan popup aayega
+            alert("⚠️ Alert Error: " + alertErr.message);
+        }
+        // 🚀 ------------------------------------------------ 🚀
+
+                alert("Transaction Successful! ✅");
+                showScreen('main-dashboard');
+                window.loadHistory(); // Dashboard balance aur History refresh
+
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+} else {
+        alert("Galat PIN!");
+    }
+};
+
+// ==========================================
+// --- NEW HISTORY & RECEIPT LOGIC ---
+// ==========================================
+
+window.currentHistoryTab = 'TXN'; // Default tab
+
+window.switchHistoryTab = (tab) => {
+    window.currentHistoryTab = tab;
+    const btnTxn = document.getElementById('tab-txn');
+    const btnWith = document.getElementById('tab-withdraw');
+    
+    if(tab === 'TXN') {
+        btnTxn.className = "flex-1 bg-[#0057ff] text-white font-bold py-3.5 rounded-xl text-xs transition";
+        btnWith.className = "flex-1 text-gray-400 font-bold py-3.5 rounded-xl text-xs transition flex justify-center items-center gap-1.5 hover:bg-gray-50";
+    } else {
+        btnWith.className = "flex-1 bg-[#0057ff] text-white font-bold py-3.5 rounded-xl text-xs transition flex justify-center items-center gap-1.5";
+        btnTxn.className = "flex-1 text-gray-400 font-bold py-3.5 rounded-xl text-xs transition hover:bg-gray-50";
+    }
+    window.loadHistory(); // Reload data base on tab
+};
+
+        // Receipt Popup dikhane ka function (Dark Theme VIP Ready + Comment)
+        window.showReceipt = (amt, type, sender, receiver, id, isCredit, status, txDate, comment) => {
+            // Amount aur Sign (+/-)
+            let sign = (isCredit === 'true' || isCredit === true) ? "+" : (isCredit === 'false' || !isCredit === false ? "-" : "");
+            
+            document.getElementById('receipt-amt').innerText = sign + "₹" + amt;
+            document.getElementById('receipt-id').innerText = id.toUpperCase();
+            document.getElementById('receipt-type').innerText = type;
+            document.getElementById('receipt-sender').innerText = sender;
+            document.getElementById('receipt-receiver').innerText = receiver;
+            document.getElementById('receipt-date').innerText = txDate || new Date().toLocaleString();
+            
+            // NOTE / COMMENT Add kiya (Agar blank hai toh '--' dikhayega)
+            let noteBox = document.getElementById('receipt-note');
+            if(noteBox) noteBox.innerText = (comment && comment !== "undefined" && comment !== "") ? comment : "--";
+
+            // --- NAYA STATUS UPDATE LOGIC (VIP DARK THEME) ---
+            const statusBadge = document.getElementById('receipt-status');
+            const iconBg = document.getElementById('receipt-icon-bg');
+            const icon = document.getElementById('receipt-icon');
+
+            if (statusBadge && iconBg && icon) {
+                let currentStatus = status || "SUCCESS";
+                statusBadge.innerText = currentStatus;
+
+                // Status ke hisaab se color aur icon badlo
+                if (currentStatus === 'PENDING') {
+                    statusBadge.className = "text-xl font-black text-orange-500 tracking-widest uppercase";
+                    iconBg.className = "h-16 w-16 bg-orange-500/20 text-orange-500 rounded-full flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(249,115,22,0.3)] border border-orange-500/50";
+                    icon.className = "fa-solid fa-clock animate-pulse";
+                } else if (currentStatus === 'REJECTED') {
+                    statusBadge.className = "text-xl font-black text-red-500 tracking-widest uppercase";
+                    iconBg.className = "h-16 w-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(239,68,68,0.3)] border border-red-500/50";
+                    icon.className = "fa-solid fa-xmark";
+                } else {
+                    statusBadge.className = "text-xl font-black text-white tracking-widest uppercase";
+                    iconBg.className = "h-16 w-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(16,185,129,0.3)] border border-emerald-500/50";
+                    icon.className = "fa-solid fa-check";
+                }
+            }
+
+            document.getElementById('receipt-modal').classList.remove('hidden');
+        };
+
+window.loadHistory = async () => {
+    try {
+        const { collection, query, where, getDocs, updateDoc, increment, addDoc } = window;
+        const listArea = document.getElementById('history-list');
+        // 💡 SMART CHECK: Agar cache mein data hai (length > 50), toh loading text mat dikhao
+        if (listArea.innerHTML.trim().length < 50) {
+            listArea.innerHTML = '<p class="text-center text-xs text-gray-400 py-10 animate-pulse">Fetching history...</p>';
+        }
+        // Update balance on card
+        document.getElementById('history-avail-bal').innerText = "₹" + (Number(window.currentUser.balance) || 0).toFixed(2);
+
+        let finalHtml = "";
+
+        // 1. Agar tab "TXN" (Transactions) hai toh naye folder se history laao
+        if (window.currentHistoryTab === 'TXN') {
+            // 🚀 Ab sirf top 15 transactions load honge (Database reads bachenge!)
+            const q = window.query(
+                window.collection(window.db, "transactions"), 
+                window.where("userPhone", "==", window.currentUser.phone),
+                window.orderBy("timestamp", "desc"), 
+                window.limit(30)
+            );
+            const snap = await window.getDocs(q);
+
+            if (snap.empty) {
+                listArea.innerHTML = `<div class="text-center py-10"><p class="text-xs text-gray-400 font-bold uppercase">No Transactions Found!</p></div>`;
+                return;
+            }
+
+            // Latest transactions upar dikhane ke liye sort karna
+            let txns = [];
+            snap.forEach(doc => txns.push({ id: doc.id, ...doc.data() }));
+        // 👇 MASTER SORT ENGINE 👇
+        txns.sort((a, b) => {
+            let tA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : Number(a.timestamp) || 0;
+            let tB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : Number(b.timestamp) || 0;
+            return tB - tA;
+        });
+
+            txns.forEach(data => {
+                const txId = data.id.substring(0, 12);
+                const amount = data.amount || data.amt || 0; // Naya 'amount' aur purana 'amt' dono support karega
+
+                let isCredit = (data.type === 'DEPOSIT' || data.type === 'RECEIVE' || data.type === 'API RECEIVED'|| data.type === 'LIFAFA_CLAIM');
+                let sign = isCredit ? "+" : "-";
+                let color = isCredit ? "text-emerald-500" : "text-red-500";
+                let bgIcon = isCredit ? "bg-emerald-50 text-emerald-500" : "bg-red-50 text-red-500";
+                let arrow = isCredit ? "fa-arrow-down" : "fa-arrow-up";
+
+                let title = "Transaction";
+                let tag = "P2P";
+                let statusText = "Success";
+                let statusColor = "text-emerald-500";
+
+                        // 👇 UNIVERSAL DATE CATCHER 👇
+        let exactDate = "Recent Transaction";
+        if (data.date && data.date !== 'undefined') {
+            exactDate = data.date; // Naye single pay ka time
+        } else if (data.timestamp && data.timestamp.seconds) {
+            exactDate = new Date(data.timestamp.seconds * 1000).toLocaleString('en-IN'); // Deposit/Withdraw ka time
+        } else if (data.time) {
+            exactDate = data.time; // Agar aur koi purana format ho
+        } else {
+            exactDate = "Old Transaction"; // Jisme koi date save hi nahi hui thi
+        }
+
+                // --- NAYA PENDING AUR REJECTED LOGIC ---
+                if (data.status === 'PENDING') {
+                    statusText = "Pending";
+                    statusColor = "text-orange-500";
+                    color = "text-orange-500";
+                    sign = ""; 
+                    if(data.type === 'DEPOSIT') { title = 'Deposit Pending'; tag = 'ADD FUND'; }
+                    else if(data.type === 'WITHDRAW') { title = 'Withdrawal Pending'; tag = 'PAYOUT'; }
+                }
+                else if (data.status === 'REJECTED') {
+                    statusText = "Rejected";
+                    statusColor = "text-red-500";
+                    if (data.type === 'WITHDRAW') {
+                        title = 'Withdrawal Rejected (Refunded)';
+                        isCredit = true; sign = "+"; color = "text-emerald-500";
+                        bgIcon = "bg-emerald-50 text-emerald-500"; arrow = "fa-arrow-down"; tag = "REFUND";
+                    } else if (data.type === 'DEPOSIT') {
+                        title = 'Deposit Rejected';
+                        isCredit = false; sign = ""; color = "text-gray-400";
+                        bgIcon = "bg-red-50 text-red-500"; tag = "FAILED";
+                    }
+                } 
+                        else { // SUCCESS LOGIC
+             if (data.type === 'DEPOSIT') { title = 'Deposit / Add'; tag = 'ADD FUND'; }
+            else if (data.type === 'WITHDRAW') { title = 'Withdrawal'; tag = 'PAYOUT'; }
+            else if (data.type === 'BULK SEND') { title = 'Bulk Transfer'; tag = 'BULK OUT'; }
+            else if (data.type === 'SEND') { title = 'Money Sent'; tag = 'P2P transfer'; }          
+            else if (data.type === 'API SEND') { title = 'API Transfer'; tag = 'API OUT'; }
+            else if (data.type === 'RECEIVED') { title = 'Bulk Received'; tag = 'BULK IN'; }
+            else if (data.type === 'RECEIVE') { title = 'Money Received'; tag = 'P2P received'; }            
+            else if (data.type === 'API RECEIVED') { title = 'API Received'; tag = 'API IN'; }
+            else if (data.type === 'UPI SEND') { title = 'UPI Payout'; tag = 'UPI OUT'; }
+        }
+
+                let senderName = isCredit ? (data.type === 'DEPOSIT' ? 'System API' : (data.userName || 'Sender')) : window.currentUser.name;
+                let receiverName = isCredit ? window.currentUser.phone : (data.upi || data.utr || 'Recipient');
+               if (data.type === 'BULK SEND') { receiverName = data.to || 'User'; senderName = 'You'; }
+               if (data.type === 'API SEND') { receiverName = data.to || 'User'; senderName = 'API Bot'; }
+               if (data.type === 'RECEIVED') { senderName = data.from || 'Admin'; receiverName = 'You'; }
+               if (data.type === 'API RECEIVED') { senderName = data.from || 'API Bot'; receiverName = 'You'; }
+               if (data.type === 'UPI SEND') { receiverName = data.to || 'External UPI'; senderName = 'King Wallet'; }
+               if (data.type === 'SEND') { receiverName = data.receiver || 'User'; senderName = 'You'; }
+               if (data.type === 'RECEIVE') { senderName = data.sender || 'User'; receiverName = 'You'; }
+
+                finalHtml += `
+                <div onclick="window.showReceipt('${amount}', '${tag}', '${senderName}', '${receiverName}', '${txId}', '${isCredit}', '${data.status || 'SUCCESS'}', '${exactDate}', '${data.txnComment || data.comment || ''}')" class="flex items-center gap-3 bg-white p-3 rounded-2xl mb-2 shadow-sm border border-gray-50 active:scale-95 transition">
+                    <div class="h-10 w-10 rounded-full ${bgIcon} flex items-center justify-center text-sm shadow-sm">
+                        <i class="fa-solid ${arrow}"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-black text-slate-800">${title}</h3>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="bg-gray-100 text-gray-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">${tag}</span>
+                            <span class="text-[9px] font-bold text-gray-400">Tap to view</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <h3 class="text-lg font-black ${color}">${sign}₹${amount}</h3>
+                        <p class="text-[9px] font-black ${statusColor} uppercase tracking-widest mt-0.5">${statusText}</p>
+                    </div>
+                </div>
+                `;
+            });
+
+            listArea.innerHTML = finalHtml;
+            localStorage.setItem('cachedHistory', finalHtml);
+        }
+        // 2. Agar tab "WITHDRAW" hai toh pending withdrawals fetch karo
+                else {
+            // Naye "transactions" folder se sirf PENDING withdrawals laao
+            const q = query(collection(db, "transactions"), where("userPhone", "==", window.currentUser.phone), where("type", "==", "WITHDRAW"), where("status", "==", "PENDING"));
+            const snap = await getDocs(q);
+
+            if (snap.empty) {
+                listArea.innerHTML = `<div class="text-center py-10"><p class="text-xs text-gray-400 font-bold uppercase">No Pending Withdrawals!</p></div>`;
+                return;
+            }
+
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const amount = data.amount || data.amt || 0; // Naya format support karne ke liye
+                
+                finalHtml += `
+                <div class="p-4 mb-2 rounded-2xl bg-white border border-gray-100 shadow-sm relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-sm font-black text-slate-800">Withdrawal Request</h3>
+                        <h3 class="text-base font-black text-orange-500">₹${amount}</h3>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-2.5 flex items-center gap-2 mb-3">
+                        <i class="fa-solid fa-wallet text-blue-500 text-xs"></i>
+                        <span class="text-[10px] font-bold text-slate-600 tracking-wide">${data.upi || 'UPI ID'}</span>
+                    </div>
+                    <span class="bg-orange-50 text-orange-500 font-black text-[9px] px-2.5 py-1 rounded-full uppercase tracking-wider border border-orange-100">Pending</span>
+                </div>`;
+            });
+            listArea.innerHTML = finalHtml;
+         }
+
+    } catch (e) {
+        console.error("History Error:", e);
+        // 🚨 Error ko screen par dikhao
+        const listArea = document.getElementById('history-list');
+        listArea.innerHTML = `<div class="text-center p-5 text-red-500 text-[10px]">Error: ${e.message}</div>`;
+    }
+};
+
+    // External Bot Integration: Balance Verification and Deduction
+window.deductMerchantBalance = async (apiKey, amount) => {
+    try {
+        // 1. Pehle us user ko dhoondein jiski ye API Key hai
+        const q = window.query(window.collection(window.db, "users"), window.where("merchantApiKey", "==", apiKey));
+        const userSnap = await window.getDocs(q);
+
+        if (userSnap.empty) return { success: false, msg: "Invalid API Key" };
+
+        const userDoc = userSnap.docs[0];
+        const userData = userDoc.data();
+
+        // 2. Check karein ki balance kafi hai ya nahi
+        if (userData.balance < amount) return { success: false, msg: "Insufficient Balance" };
+
+        // 3. Balance deduct karein
+        await window.updateDoc(userDoc.ref, { balance: increment(-amount) });
+
+        // 4. Transaction history mein record karein
+        await window.addDoc(window.collection(window.db, "history"), {
+            owner: userData.phone,
+            amt: amount,
+            type: "GATEWAY_PAY",
+            status: "SUCCESS",
+            timestamp: serverTimestamp(),
+            desc: "Payment via Merchant API"
+        });
+
+        return { success: true, txnId: "KW" + Date.now() };
+    } catch (e) {
+        return { success: false, msg: e.message };
+    }
+};
+    // Profile ka data screen par load karne ke liye
+window.loadProfileData = () => {
+    if(currentUser) {
+        document.getElementById('profile-name-display').innerText = currentUser.name || "User";
+        document.getElementById('profile-phone-display').innerText = currentUser.phone.startsWith("+91") ? currentUser.phone : "+91 " + currentUser.phone;
+        document.getElementById('edit-name-input').value = currentUser.name || "";
+    }
+};
+
+// Profile ka Name update karke Firebase mein save karne ke liye
+window.updateProfileName = async () => {
+    const newName = document.getElementById('edit-name-input').value;
+    if(newName.length < 3) return alert("Bhai, naam kam se kam 3 letter ka hona chahiye!");
+
+    try {
+        await updateDoc(doc(db, "users", currentUser.phone.startsWith("+91") ? currentUser.phone : "+91" + currentUser.phone), { name: newName })
+        
+        // Website par naam turant badalne ke liye
+        document.getElementById('profile-name-display').innerText = newName;
+        currentUser.name = newName; // Local data update
+        
+        alert("Profile Updated Successfully! ✅");
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+        window.processDeposit = async () => {
+    // 1. UTR aur Amount uthao screenshot me diye gaye IDs se
+    const utr = document.getElementById('dep-utr').value.trim();
+    const amount = document.getElementById('dep-amt').value.trim();
+
+    // 2. Chhoti si Checking (Validation)
+    if (!utr || utr.length !== 12) {
+                return Swal.fire({
+            title: "Galat UTR! ❌",
+            text: "Bhai, sahi 12-digit ka UTR number daalo!",
+            icon: "error",
+            confirmButtonColor: "#ef4444",
+            customClass: { popup: 'rounded-3xl' }
+        });
+    }
+    if (!amount || Number(amount) <= 0) {
+                return Swal.fire({
+            title: "Galat Amount! ⚠️",
+            text: "Kripya sahi amount enter karein!",
+            icon: "warning",
+            confirmButtonColor: "#f59e0b",
+            customClass: { popup: 'rounded-3xl' }
+        });
+    }
+
+    try {
+        // 3. Transaction ke liye ek naya ticket (ID) banao
+        const txnId = "DEP" + Date.now(); 
+
+        // 4. Data jo Firebase me jayega (Yahi sabse main hai)
+        const txnData = {
+            id: txnId,
+            userPhone: window.currentUser.phone, // Tumhara +91 wala number
+            userName: window.currentUser.name,
+            type: "DEPOSIT",
+            amount: Number(amount),
+            utr: utr,
+            status: "PENDING", // <--- Asli Jadoo Yahan Hai! ⏳
+            timestamp: new Date().getTime(),
+            date: new Date().toLocaleString()
+        };
+
+        // 5. Naye "transactions" folder me save  karna
+        await setDoc(doc(db, "transactions", txnId), txnData);
+
+        // 6. Kaam hone ke baad Box saaf karo aur User ko batao
+        document.getElementById('dep-utr').value = "";
+        document.getElementById('dep-amt').value = "";
+        
+        Swal.fire({
+    title: "Request Sent! ⏳",
+    text: "Admin check karke balance add karega.",
+    icon: "success",
+    confirmButtonColor: "#2563eb", 
+    confirmButtonText: "OK",
+    allowOutsideClick: false,
+    customClass: {
+        popup: 'rounded-3xl'
+    }
+});
+        window.sendTelegramAlert(amount, "DEPOSIT", window.currentUser.phone, utr);
+        window.sendUserTelegramAlert(window.currentUser.tgId, amount, "DEPOSIT", "PENDING", utr);
+        
+        // Modal chhupao aur Dashboard par bhejo
+        document.getElementById('pin-modal').classList.add('hidden');
+        window.showScreen('main-dashboard');
+
+    } catch (e) {
+        console.error("Deposit Error:", e);
+                Swal.fire({
+            title: "System Error! ❌",
+            text: "Request bhejne mein problem aayi: " + e.message,
+            icon: "error",
+            confirmButtonColor: "#ef4444",
+            customClass: { popup: 'rounded-3xl' }
+        });
+    }
+};
+
+            // --- TELEGRAM BOT ALERT FUNCTION (DEPOSIT/WITHDRAW) ---
+    window.sendTelegramAlert = async (amount, type, phone, detail) => {
+        // Bhai yahan apne bot ka token aur apni chat id daal dena string ke andar
+        const botToken = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY"; 
+        const chatId = "8158560910"; 
+
+        const msg = `🚨 *NEW ${type} REQUEST* 🚨\n\n👤 *User:* ${phone}\n💰 *Amount:* ₹${amount}\n📝 *${type === 'DEPOSIT' ? 'UTR' : 'UPI'}:* ${detail}\n\n⚠️ Check Admin Panel!`;
+
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`;
+
+        try {
+            await fetch(url);
+            console.log("Telegram alert sent!");
+        } catch (e) {
+            console.log("Telegram Alert Error: ", e);
+        }
+    };
+
+            // --- USER TELEGRAM BOT ALERT FUNCTION ---
+    window.sendUserTelegramAlert = (tgId, amount, type, status, detail) => {
+                        if (!tgId || tgId === "") return;
+
+        const botToken = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY"; // Apna King Wallet Bot Token daalna
+
+        let msg = "";
+        if (status === "PENDING") {
+            msg = `⏳ *${type} REQUEST SEND SUCCESSFUL*\n\n💰 *Amount:* ₹${amount}\n📝 *${type === 'DEPOSIT' ? 'UTR' : 'UPI'}:* ${detail}\n\nKripya admin ke approve karne ka wait karein.`;
+        } else if (status === "SUCCESS") {
+            msg = `✅ *${type} SUCCESSFUL*\n\n💰 *Amount:* ₹${amount}\n📝 *${type === 'DEPOSIT' ? 'UTR' : 'UPI'}:* ${detail}\n\nAapka balance update kar diya gaya hai! 🎉`;
+        } else if (status === "REJECTED") {
+            msg = `❌ *${type} REJECTED*\n\n💰 *Amount:* ₹${amount}\n📝 *${type === 'DEPOSIT' ? 'UTR' : 'UPI'}:* ${detail}\n\nKisi problem ki wajah se aapki request reject ho gayi hai.`;
+        }
+
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${tgId}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`;
+
+        // Bina app roke background me message bhej dega
+                fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if(!data.ok) alert("Telegram ka Asli Error: " + data.description);
+                else console.log("Message Sent!");
+            })
+            .catch(e => alert("Fetch Error: " + e));
+    };
+
+// --- MISSING FUNCTIONS FIX ---
+window.copyReferralLink = () => {
+    const link = `https://king-wallet-pn77.vercel.app/index.html?register=true&ref=${window.currentUser?.phone || ''}`;
+    navigator.clipboard.writeText(link);
+    Swal.fire({ title: "Copied!", text: "Referral Link Copied! ✅", icon: "success", timer: 2000, confirmButtonColor: "#eab308", customClass: { popup: 'rounded-3xl' } });
+};
+
+window.openSpinWheel = () => {
+    document.getElementById('spin-wheel-screen').classList.remove('hidden');
+};
+
+window.copyUserApiKey = () => {
+    const key = window.currentUser?.apiKey || "NO_KEY_GENERATED_YET";
+    navigator.clipboard.writeText(key);
+    alert("✅ API Key Copied!");
+};
+
+window.generateNewApiKey = async () => {
+    window.generateUserApiKey(); // Same function hai
+};
+
+
+let generatedOTP = null; // OTP save rakhne ke liye variable
+
+window.sendTelegramOTP = async () => {
+    const tgid = document.getElementById('reg-tgid').value;
+    
+    if (!tgid) {
+        return alert("⚠️ Pehle apni Telegram ID enter karein!");
+    }
+
+    // 4-digit random OTP generate karna
+    generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Telegram Bot ko message bhejna
+    const otpMessage = `🔐 *KING WALLET REGISTRATION*\n\nAapka verification OTP hai: *${generatedOTP}*\n\nKripya ise kisi ke sath share na karein.`;
+    
+    try {
+        // Bina page rukawato ke bot API hit karna
+                        const response = await fetch(`https://api.telegram.org/bot8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY/sendMessage?chat_id=${tgid}&text=${encodeURIComponent(otpMessage)}&parse_mode=Markdown`);
+        const data = await response.json();
+
+        if (data.ok) {
+            alert("✅ OTP sent successfully! Apne Telegram bot me check karein.");
+        } else {
+    alert("❌ Telegram ka Asli Error: " + data.description);
+        }
+    } catch (e) {
+                alert("⚠️ Error: " + e.message);
+    }
+};
+
+window.verifyAndRegister = async () => {
+    const name = document.getElementById('reg-name').value;
+    const phone = document.getElementById('reg-phone').value;
+    const pin = document.getElementById('reg-pin').value;
+    const tgid = document.getElementById('reg-tgid').value;
+    const userOtp = document.getElementById('reg-otp').value;
+    const tcChecked = document.getElementById('reg-tc').checked;
+
+    // 1. Basic Checks
+    if (!name || !phone || !pin || !tgid || !userOtp) {
+        return alert("⚠️ Kripya sabhi details bhariye!");
+    }
+    if (phone.length !== 10) {
+            return alert("❌ Bhai, sahi number daalo! Mobile number pure 10 digits ka hona chahiye.");
+    }
+    if (!tcChecked) {
+        return alert("⚠️ Pehle Terms & Conditions box ko tick karein!");
+    }
+    
+    // 2. OTP Check
+    if (generatedOTP === null) {
+        return alert("⚠️ Pehle 'Send OTP' button par click karke OTP mangwayein.");
+    }
+    if (userOtp !== generatedOTP) {
+        return alert("❌ Galat OTP! Kripya bot me dekh kar sahi OTP daalein.");
+    }
+
+    // 3. Agar OTP sahi hai, toh Database me save karo
+    try {
+                // ==========================================
+        // 🚨 NAYA ANTI-FAKE LOCK (TELEGRAM ID CHECK) 
+        // ==========================================
+        
+        const q = query(collection(db, "users"), where("tgId", "==", tgid));
+        const tgSnapshot = await getDocs(q);
+
+        if (!tgSnapshot.empty) {
+            return alert("🚨 FRAUD ALERT: Ye Telegram ID pehle se kisi dusre account mein registered hai! \n\n1 Telegram ID se sirf 1 account ban sakta hai.");
+        }
+        // ==========================================
+
+                const checkRef = doc(db, "users", "+91" + phone);
+        const checkSnap = await getDoc(checkRef);
+        if (checkSnap.exists()) {
+            return alert("❌ Bhai, ye number pehle se registered hai! Kripya Login karo.");
+        }
+        const userData = {
+            name: name,
+            phone: "+91" + phone,
+            pin: pin,
+            tgId: tgid,
+            balance: 0,
+            joinedAt: new Date().toISOString()
+        };
+
+        // Firebase me save karna (Tumhare pichle code jaisa)
+        await setDoc(doc(db, "users", "+91" + phone), userData);
+        
+        // Local storage me login save karna
+        localStorage.setItem('ultra_user', JSON.stringify(userData));
+        window.currentUser = userData;
+        
+        alert("🎉 Account Ban Gaya Successfully!");
+        
+        // Form clear karna aur Dashboard pe le jana
+        document.getElementById('reg-otp').value = "";
+        generatedOTP = null; 
+        showScreen('main-dashboard');
+
+    } catch (e) {
+        console.error(e);
+        alert("⚠️ Account banane mein problem aayi: " + e.message);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Local storage se user ka data uthao
+    const savedUser = localStorage.getItem('ultra_user');
+    
+    if (!savedUser) {
+        // 🔥 NAYA JADOO: Check karo ki user register karne aaya hai ya nahi
+        if (window.location.search.includes('register=true')) {
+            window.showScreen('register-screen');
+        } else {
+            window.location.href = 'login.html';
+        }
+    } else {
+        // Agar login hai toh data set karo aur dashboard dikhao
+        window.currentUser = JSON.parse(savedUser);
+        window.showScreen('main-dashboard');
+        
+        // Database se real-time update lete raho
+                onSnapshot(doc(db, "users", window.currentUser.phone), (d) => {
+            if (d.exists()) {
+                const userData = d.data();
+                window.currentUser = userData; 
+                window.userPin = userData.pin;
+                localStorage.setItem('ultra_user', JSON.stringify(userData));
+
+                // Screen par balance update karne ka code
+                const balElement = document.getElementById('main-balance');
+                if (balElement) {
+                    balElement.innerText = "₹" + (Number(userData.balance) || 0).toFixed(2);
+                }
+            }   
+        });
+    }
+});
+// Copy UPI ID Function
+window.copyUPI = function() {
+    navigator.clipboard.writeText("kingdipak@fam");
+    
+    // 🚀 Swal Fire VIP Popup 🚀
+    Swal.fire({
+        title: "Copied!",
+        text: "UPI ID Copied Successfully! ✅",
+        icon: "success",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#28a745", // Green color ka button (tum change kar sakte ho)
+        timer: 2500 // 2.5 seconds me apne aap band ho jayega
+    });
+};
+
+            // --- BULK SEND VIP LOGIC ---
+    window.processBulkSend = async () => {
+        const numbersInput = document.getElementById('bulk-numbers').value;
+        const amountInput = document.getElementById('bulk-amount').value;
+        const commentInput = document.getElementById('bulk-comment').value || 'Bulk Transfer';
+
+        const amount = Number(amountInput);
+        if (!amount || amount <= 0) return alert("Bhai, sahi amount toh daal!");
+
+        // Numbers ko line-by-line alag karna
+        const rawNumbers = numbersInput.split('\n');
+        const validNumbers = [];
+        
+        for (let n of rawNumbers) {
+            let cleanN = n.trim();
+        // 👇 NAYA JADOO: Number ko yahi par filter aur fix kar do
+        if (cleanN.length === 10 && !isNaN(cleanN)) {
+            validNumbers.push("+91" + cleanN); // Agar user ne sirf 10 digit dale toh +91 laga do
+        } else if (cleanN.startsWith("+91") && cleanN.length === 13) {
+            validNumbers.push(cleanN); // Agar user ne pehle se hi +91 lagaya hai, toh waise hi accept kar lo
+            }
+        }
+
+        if (validNumbers.length === 0) return alert("Ek bhi sahi 10-digit number nahi mila!");
+
+                // 🚨 NAYA VIP PRE-CHECK: Kya saare numbers registered hain?
+        let wrongNumbers = [];
+        for (let num of validNumbers) {
+            const testUser = await getDoc(doc(db, "users", String(num)));
+            if (!testUser.exists()) {
+                wrongNumbers.push(num); // Jo number nahi mila usko list me daal do
+            }
+        }
+
+        // Agar ek bhi galat number mila, toh transaction yahi rok do
+        if (wrongNumbers.length > 0) {
+            return alert("🚨 PAYMENT FAILED!\n\nYe numbers app par Register NAHI hain:\n" + wrongNumbers.join("\n") + "\n\nPehle inko list se hatao, tabhi bulk send hoga.");
+        }
+        // 🚨 PRE-CHECK KHATAM 🚨
+
+        const totalNeeded = amount * validNumbers.length;
+        if (window.currentUser.balance < totalNeeded) {
+            return alert(`Balance kam hai! Aapko total ₹${totalNeeded} chahiye (${validNumbers.length} logo ke liye).`);
+        }
+
+        if (!confirm(`Kya aap sach me ${validNumbers.length} logo ko ₹${amount} (Total Katega: ₹${totalNeeded}) bhejna chahte hain?`)) return;
+
+        try {
+            let successCount = 0;
+            let failCount = 0;
+
+            alert("Sending Start... Please wait!"); // System chal pada
+
+            for (let num of validNumbers) {
+                if (num === window.currentUser.phone) continue; // Khud ko nahi bhejna
+                
+                const userRef = doc(db, "users", String(num));
+                const userDoc = await getDoc(userRef);
+
+                if (userDoc.exists()) {
+                    // 1. Apne account se paise kaato
+                    await updateDoc(doc(db, "users", String(window.currentUser.phone)), { balance: increment(-amount) });
+                    // 2. Samne wale ko do
+                    await updateDoc(userRef, { balance: increment(amount) });
+                    
+                    // 3. Apni History mein likho
+                    await addDoc(collection(db, "transactions"), {
+                        userPhone: window.currentUser.phone,
+                        amount: amount,
+                        type: 'BULK SEND',
+                        status: 'SUCCESS',
+                        to: num,
+                        comment: commentInput,
+                        timestamp: Date.now()
+                    });
+
+                    // 4. Samne wale ki history mein likho
+                    await addDoc(collection(db, "transactions"), {
+                        userPhone: num,
+                        amount: amount,
+                        type: 'RECEIVED',
+                        status: 'SUCCESS',
+                        from: window.currentUser.phone,
+                        comment: commentInput,
+                        timestamp: Date.now()
+                    });
+                    successCount++;
+                } else {
+                    failCount++; // Jo number nahi mila
+                }
+            }
+            
+            alert(`✅ Bulk Send Complete!\n\nSuccess: ${successCount} users\nFailed: ${failCount} users (App par nahi hain)`);
+            
+            // Box saaf kar do
+            document.getElementById('bulk-numbers').value = "";
+            document.getElementById('bulk-amount').value = "";
+            document.getElementById('bulk-comment').value = "";
+            
+            // Wapas home pe le jao aur balance refresh karo
+            window.location.reload();
+            window.showScreen('main-dashboard');
+            
+        } catch (e) {
+            console.error("Bulk Error: ", e);
+            alert("Error: " + e.message);
+        }
+    };
+    // ================= VIP API KEY SYSTEM (FINAL ENGINE FIX) =================
+    window.generateUserApiKey = async () => {
+        if (!confirm("Are you sure? Nayi key banate hi purani key kaam karna band kar degi!")) return;
+        
+        try {
+            // 1. Ekdum Unique VIP key banao
+            const newKey = 'KW-' + Math.random().toString(36).substr(2, 6).toUpperCase() + Date.now().toString(36).substr(4, 4).toUpperCase();
+            
+            // 2. Firebase Database me save karo (Dono naam se save kar rahe hain taaki pichla bot ka system bhi na tute)
+            await updateDoc(doc(db, "users", String(window.currentUser.phone)), { 
+                apiKey: newKey,
+                merchantApiKey: newKey
+            });
+            
+            // 3. User ke current data me update karo
+            window.currentUser.apiKey = newKey;
+            
+            // 4. Screen par sab jagah nayi key update kar do
+            document.querySelectorAll('.user-api-key-text').forEach(el => {
+                if(el.tagName === 'INPUT') el.value = newKey;
+                else el.innerText = newKey;
+            });
+            
+            // Success Message
+            alert("✅ VIP API Key Ban Gayi: " + newKey);
+            
+        } catch (error) {
+            alert("❌ Error: " + error.message);
+        }
+    };
+
+    // ================= COPY BUTTON KA LOGIC =================
+    window.copyApiText = (type) => {
+        let textToCopy = "";
+        const key = window.currentUser.apiKey || "NO_KEY_GENERATED_YET";
+        
+        if (type === 'api-key-only') {
+            textToCopy = key; // Sirf Key copy hogi
+        } else if (type === 'api-url-full') {
+            textToCopy = `https://king-wallet-pn77.vercel.app/api/pay?key=${key}&paytm={number}&amount={amount}&comment=bot_payout`; // Pura URL copy hoga
+        }
+        
+        navigator.clipboard.writeText(textToCopy);
+        alert("✅ Copied to clipboard!");
+    };
+
+    // --- 1. DASHBOARD SE VIP CLAIM SCREEN KHOLNA ---
+    const claimBtn = document.getElementById('claim-btn');
+    if (claimBtn) {
+        claimBtn.onclick = () => window.showScreen('claim-screen');
+    }
+
+    // --- 2. CLAIM CODE LOGIC (MULTI-USER & DB FIX) ---
+    window.handleClaimCode = async () => {
+        // Safe Phone Number Fetch
+        const userPhone = (window.currentUser && window.currentUser.phone) ? window.currentUser.phone : localStorage.getItem('userPhone');
+        if(!userPhone) return alert("❌ User data nahi mila, ek baar refresh karo!");
+
+        const code = document.getElementById('claim-input').value.trim().toUpperCase();
+        if (!code) return alert("❌ Bhai, code toh dalo!");
+
+        const loader = document.getElementById('global-loader');
+        if(loader) loader.style.display = 'flex';
+
+        try {
+            // FIREBASE DB FIX: getFirestore ko bhi import kiya
+            const { getFirestore, getDoc, doc, updateDoc, setDoc, arrayUnion } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+            const db = getFirestore(); // Ye line error ko hamesha ke liye khatam kar degi!
+
+            const codeRef = doc(db, "promoCodes", code);
+            const codeSnap = await getDoc(codeRef);
+
+            if (!codeSnap.exists()) throw new Error("❌ Invalid Code!");
+            const data = codeSnap.data();
+            
+            if (data.status !== "active") throw new Error("⚠️ Ye code band ho chuka hai!");
+
+            const claimedList = data.claimedBy || [];
+            if (claimedList.includes(userPhone)) throw new Error("⚠️ Aapne ye code pehle hi claim kar liya hai!");
+            
+            const max = data.maxUsers || 1;
+            if (claimedList.length >= max) throw new Error("❌ Gift Code Over! (Limit poori ho gayi)");
+
+            const userRef = doc(db, "users", userPhone);
+            const userSnap = await getDoc(userRef);
+        
+        // --- NAYA SAFE MATHS ENGINE ---
+        let currentBal = parseFloat(userSnap.data().balance) || 0;
+        let claimAmt = parseFloat(data.amount) || 0;
+        let newBal = (currentBal + claimAmt).toFixed(2);
+
+        await updateDoc(userRef, { balance: newBal });
+        
+        // Screen par turant naya balance dikhane ke liye (Bina refresh kiye)
+        if (window.currentUser) {
+            window.currentUser.balance = newBal;
+        }
+            
+            let newStatus = "active";
+            if (claimedList.length + 1 >= max) {
+                newStatus = "used"; 
+            }
+            
+            await updateDoc(codeRef, { 
+                claimedBy: arrayUnion(userPhone),
+                status: newStatus
+            });
+
+            const txnId = "GIFT" + Date.now();
+            await setDoc(doc(db, "transactions", txnId), {
+                id: txnId, userPhone: userPhone, amount: data.amount,
+                type: "RECEIVE", status: "SUCCESS", date: new Date().toLocaleString(),
+                timestamp: Date.now(), utr: "CLAIM-" + code
+            });
+            
+            // ==========================================
+            // 🚀 TELEGRAM BOT ALERTS (Claim Code)
+            // ==========================================
+            try {
+                // 1. Claim karne wale ko message
+                const claimerSnap = await getDoc(doc(db, "users", userPhone));
+                const claimerChatId = claimerSnap.data().chatId;
+                const claimerMsg = `🎉 <b>Gift Code Claimed!</b>\n\n💸 <b>₹${data.amount}</b> received from gift code.\n✅ Enjoy your reward!`;
+                
+                window.sendGiftBotAlert(claimerChatId, claimerMsg); // NAYA NAAM YAHAN USE HUA
+
+                // 2. Code banane wale (Creator) ko message
+                const max = data.maxUsers || 1;
+                const newClaimedCount = (data.claimedBy ? data.claimedBy.length : 0) + 1;
+                
+                const creatorSnap = await getDoc(doc(db, "users", data.createdBy));
+                if (creatorSnap.exists() && creatorSnap.data().chatId) {
+                    const creatorMsg = `🎁 <b>Your Gift Code was Claimed!</b>\n\n👤 Claimed by: <code>${userPhone}</code>\n💰 Amount: <b>₹${data.amount}</b>\n📊 Status: <b>${newClaimedCount}/${max}</b> claimed`;
+                    
+                    window.sendGiftBotAlert(creatorSnap.data().chatId, creatorMsg); // NAYA NAAM YAHAN USE HUA
+                }
+            } catch(botErr) { 
+                console.log("Bot Error:", botErr); 
+            }
+            // ==========================================
+
+            alert(`🔥 ₹${data.amount} successfully claimed!`);
+            window.location.reload(); 
+        } catch (e) { alert(e.message); }
+        if(loader) loader.style.display = 'none';
+    };
+
+    // --- 3. CREATE GIFT CODE LOGIC (MULTI-USER & DB FIX) ---
+    window.handleCreateCode = async () => {
+        // Safe Phone Number Fetch
+        const userPhone = (window.currentUser && window.currentUser.phone) ? window.currentUser.phone : localStorage.getItem('userPhone');
+        if(!userPhone) return alert("❌ User data nahi mila, ek baar refresh karo!");
+
+        const amt = Number(document.getElementById('create-code-amount').value);
+        const usersCount = Number(document.getElementById('create-code-users').value) || 1;
+
+        if (!amt || amt < 1) return alert("❌ Sahi amount dalo!");
+        if (usersCount < 1) return alert("❌ Kam se kam 1 user dalo!");
+
+        const totalDeduction = amt * usersCount;
+
+        const loader = document.getElementById('global-loader');
+        if(loader) loader.style.display = 'flex';
+
+        try {
+            // FIREBASE DB FIX: getFirestore ko yahan bhi import kiya
+            const { getFirestore, getDoc, doc, updateDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+            const db = getFirestore(); // Yahan bhi DB ko zinda kiya
+
+            const userRef = doc(db, "users", userPhone);
+            const userSnap = await getDoc(userRef);
+            const currentBal = userSnap.data().balance || 0;
+
+            if (currentBal < totalDeduction) throw new Error(`❌ Balance kam hai! (Total ₹${totalDeduction} lagenge)`);
+
+            const newCode = "KING-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            await updateDoc(userRef, { balance: currentBal - totalDeduction });
+            
+            await setDoc(doc(db, "promoCodes", newCode), {
+                amount: amt, 
+                maxUsers: usersCount,
+                claimedBy: [], 
+                status: "active", 
+                createdBy: userPhone, 
+                timestamp: Date.now()
+            });
+
+            const txnId = "GEN" + Date.now();
+            await setDoc(doc(db, "transactions", txnId), {
+                id: txnId, userPhone: userPhone, amount: totalDeduction,
+                type: "SEND", status: "SUCCESS", date: new Date().toLocaleString(),
+                timestamp: Date.now(), utr: "CREATED-" + newCode
+            });
+            
+            // ==========================================
+            // 🚀 TELEGRAM BOT ALERTS (Create Code)
+            // ==========================================
+            try {
+                const creatorSnap = await getDoc(doc(db, "users", userPhone));
+                if(creatorSnap.exists() && creatorSnap.data().chatId) {
+                    const creatorMsg = `🪄 <b>New Gift Code Created!</b>\n\n🎟 <b>Code:</b> <code>${newCode}</code>\n💰 <b>Amount:</b> ₹${amt} per user\n👥 <b>Users:</b> ${usersCount}\n💵 <b>Total Deducted:</b> ₹${totalDeduction}\n\n<i>Share this code with your friends!</i>`;
+                    
+                    window.sendGiftBotAlert(creatorSnap.data().chatId, creatorMsg); // NAYA NAAM YAHAN USE HUA
+                }
+             } catch(botErr) { 
+                console.log("Bot Error:", botErr); 
+            }
+            // ==========================================
+
+            document.getElementById('generated-code-box').classList.remove('hidden');
+            document.getElementById('new-code-text').innerText = newCode;
+            alert(`✅ Code Generated! (₹${amt} har user ke liye, total ${usersCount} users)`);
+
+        } catch (e) { alert(e.message); }
+        if(loader) loader.style.display = 'none';
+    };
+
+            // --- 4. SHOW MY CODES LOGIC ---
+    window.showMyCodes = async () => {
+        const userPhone = (window.currentUser && window.currentUser.phone) ? window.currentUser.phone : localStorage.getItem('userPhone');
+        if(!userPhone) return alert("❌ User data nahi mila!");
+
+        const loader = document.getElementById('global-loader');
+        if(loader) loader.style.display = 'flex';
+
+        try {
+            // FIREBASE DB FIX ke sath
+            const { getFirestore, collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+            const db = getFirestore();
+
+            const q = query(collection(db, "promoCodes"), where("createdBy", "==", userPhone));
+            const querySnapshot = await getDocs(q);
+
+            const listDiv = document.getElementById('my-codes-list');
+            listDiv.innerHTML = ''; // Purana clean karo
+
+            if(querySnapshot.empty) {
+                listDiv.innerHTML = '<p class="text-center text-gray-500 text-xs mt-10 uppercase tracking-widest font-bold">You have not created any codes yet.</p>';
+            } else {
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const code = docSnap.id;
+                    const claimedCount = data.claimedBy ? data.claimedBy.length : 0;
+                    const maxCount = data.maxUsers || 1;
+                    const remaining = maxCount - claimedCount;
+                    const refundAmt = remaining * data.amount; // Bacha hua paisa calculate karna
+
+                    let statusBadge = data.status === 'active' ? '<span class="text-green-500 font-bold">ACTIVE</span>' : '<span class="text-red-500 font-bold">CLOSED</span>';
+                    let actionBtn = '';
+
+                    // Agar active hai aur claim bache hain, toh hi delete ka button dikhao
+                    if(data.status === 'active' && remaining > 0) {
+                        actionBtn = `<button onclick="window.revokeCode('${code}', ${refundAmt})" class="mt-4 w-full bg-red-500/10 text-red-500 border border-red-500/30 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition shadow-sm">Delete & Refund ₹${refundAmt}</button>`;
+                    }
+
+                    listDiv.innerHTML += `
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-900 border border-white/5 p-5 rounded-2xl shadow-lg relative mb-4">
+                        <h3 class="text-sky-400 font-black tracking-[2px] text-lg mb-2">${code}</h3>
+                        <div class="flex justify-between text-[10px] text-gray-400 uppercase tracking-widest mb-1">
+                            <span>Amount per user:</span> <span class="text-white font-bold">₹${data.amount}</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-400 uppercase tracking-widest mb-1">
+                            <span>Claimed:</span> <span class="text-yellow-500 font-black">${claimedCount} / ${maxCount}</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-400 uppercase tracking-widest border-t border-white/5 pt-2 mt-2">
+                            <span>Status:</span> ${statusBadge}
+                        </div>
+                        ${actionBtn}
+                    </div>`;
+                });
+            }
+            window.showScreen('my-codes-screen'); // Nayi screen dikhao
+        } catch (e) { alert(e.message); }
+        if(loader) loader.style.display = 'none';
+    };
+
+    // --- 5. REVOKE & REFUND LOGIC (MATH FIX & VIP UPDATE) ---
+    window.revokeCode = async (code, refundAmount) => {
+        if(!confirm(`🚨 Kya aap sure ho? Ye code delete ho jayega aur ₹${refundAmount} aapke wallet mein wapas milenge.`)) return;
+
+        const userPhone = (window.currentUser && window.currentUser.phone) ? window.currentUser.phone : localStorage.getItem('userPhone');
+        const loader = document.getElementById('global-loader');
+        if(loader) loader.style.display = 'flex';
+
+        try {
+            // FIREBASE DB FIX
+            const { getFirestore, doc, getDoc, updateDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+            const db = getFirestore();
+
+            const codeRef = doc(db, "promoCodes", code);
+            const userRef = doc(db, "users", userPhone);
+
+            const userSnap = await getDoc(userRef);
+            
+            // 🚨 NAYA SAFE MATHS (parseFloat lagana zaroori hai warna string jud jayega)
+            const currentBal = parseFloat(userSnap.data().balance) || 0;
+            const refundNum = parseFloat(refundAmount) || 0;
+            const newBal = Number((currentBal + refundNum).toFixed(2));
+
+            // 1. Code ko band kardo (revoked)
+            await updateDoc(codeRef, { status: "revoked" });
+
+            // 2. User ko uske bache hue paise wapas de do
+            await updateDoc(userRef, { balance: newBal });
+
+            // 3. 🚨 UI (Screen) par turant naya balance dikhane ke liye
+            if (window.currentUser) {
+                window.currentUser.balance = newBal;
+                // Agar dashboard ka balance text exist karta hai toh wahi update kardo
+                const mainBal = document.getElementById('main-balance');
+                if(mainBal) mainBal.innerText = "₹" + newBal;
+            }
+
+            // 4. History me REFUND add kardo
+            const txnId = "REF" + Date.now();
+            await setDoc(doc(db, "transactions", txnId), {
+                id: txnId, userPhone: userPhone, amount: refundNum,
+                type: "RECEIVE", status: "SUCCESS", date: new Date().toLocaleString(),
+                timestamp: Date.now(), utr: "REFUND-" + code
+            });
+
+            Swal.fire({
+    icon: 'success',
+    title: 'Refunded!',
+    text: `✅ Code Deleted! ₹${refundNum} aapke wallet mein wapas aa gaye.`,
+    background: '#111827',
+    color: '#eab308',
+    confirmButtonColor: '#ca8a04'
+});
+            window.showMyCodes(); // List ko refresh karo
+
+        } catch (e) { alert(e.message); }
+        if(loader) loader.style.display = 'none';
+    };
+
+    // --- VIP LOADER HIDE LOGIC ---
+    window.addEventListener('load', () => {
+        const loader = document.getElementById('global-loader');
+        if(loader) {
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 1000); 
+        }
+    });
+
+    // --- AUTO RANK CHECKER SYSTEM ---
+window.updateUserRank = function(transactionCount) {
+    let rankBadge = document.getElementById("user-rank-badge");
+    if (!rankBadge) return;
+
+    if (transactionCount >= 50) {
+        // PREMIUM RANK (Golden)
+        rankBadge.innerHTML = '<i class="fa-solid fa-crown text-yellow-400"></i> PREMIUM';
+        rankBadge.className = "px-2.5 py-1 rounded-full bg-yellow-500/20 border border-yellow-500/50 text-[9px] font-black text-yellow-400 uppercase tracking-wider shadow-[0_0_10px_rgba(234,179,8,0.3)] flex items-center gap-1";
+    } 
+    else if (transactionCount >= 20) {
+        // MEDIUM RANK (Blue Gem)
+        rankBadge.innerHTML = '<i class="fa-solid fa-gem text-blue-400"></i> MEDIUM';
+        rankBadge.className = "px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/50 text-[9px] font-black text-blue-400 uppercase tracking-wider shadow-[0_0_10px_rgba(59,130,246,0.3)] flex items-center gap-1";
+    } 
+    else {
+        // NORMAL RANK (Grey Star)
+        rankBadge.innerHTML = '<i class="fa-solid fa-star text-slate-400"></i> NORMAL';
+        rankBadge.className = "px-2.5 py-1 rounded-full bg-slate-800 border border-slate-600 text-[9px] font-black text-slate-300 uppercase tracking-wider shadow-inner flex items-center gap-1";
+    }
+};
+
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+body { font-family: 'Plus Jakarta Sans', sans-serif; color: white; -webkit-tap-highlight-color: transparent; }
+.glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; }
+.blue-grad { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); }
+.tap:active { transform: scale(0.96); }
+.app-screen { min-height: 100vh; width: 100%; }
+    #register-screen input { color: black !important; font-weight: bold; }
+    /* ================================ */
+    /* 🔥 NAYA VIP SCI-FI LOADER CSS 🔥 */
+    /* ================================ */
+    #global-loader {
+        position: fixed; inset: 0; background: #050505; z-index: 99999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .loader-bg-grid {
+        position: absolute; inset: 0;
+        background-image: linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px), 
+                          linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px; z-index: 0; opacity: 0.5;
+    }
+    .corner { position: absolute; width: 40px; height: 40px; border: 2px solid transparent; z-index: 1; }
+    .top-left { top: 20px; left: 20px; border-top-color: #f59e0b; border-left-color: #f59e0b; }
+    .top-right { top: 20px; right: 20px; border-top-color: #f59e0b; border-right-color: #f59e0b; }
+    .bottom-left { bottom: 20px; left: 20px; border-bottom-color: #f59e0b; border-left-color: #f59e0b; }
+    .bottom-right { bottom: 20px; right: 20px; border-bottom-color: #f59e0b; border-right-color: #f59e0b; }
+
+    .loader-content { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; width: 80%; }
+    
+    .ring-container { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; }
+    .ring-outer { position: absolute; inset: 0; border: 2px dashed rgba(245, 158, 11, 0.3); border-radius: 50%; animation: spinSlow 8s linear infinite; }
+    .ring-inner { position: absolute; inset: 10px; border: 2px solid transparent; border-top-color: #f59e0b; border-bottom-color: #f59e0b; border-radius: 50%; animation: spinFast 2s linear infinite; box-shadow: 0 0 15px rgba(245,158,11,0.2); }
+    .center-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 35px; color: black; box-shadow: 0 0 30px rgba(245,158,11,0.4); animation: pulseCrown 2s infinite; }
+
+    .loader-title { font-size: 24px; font-weight: 900; letter-spacing: 5px; color: #f59e0b; text-shadow: 0 0 10px rgba(245,158,11,0.5); margin-bottom: 5px; text-transform: uppercase; }
+    .loader-subtitle { font-size: 10px; font-weight: bold; letter-spacing: 4px; color: #6b7280; margin-bottom: 30px; text-transform: uppercase; }
+
+    .loader-pct-text { font-size: 14px; font-weight: 900; color: white; margin-bottom: 8px; letter-spacing: 2px; }
+    .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 12px; position: relative; }
+    .progress-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #b45309, #fde047); border-radius: 10px; transition: width 0.1s ease; box-shadow: 0 0 10px rgba(245,158,11,0.6); }
+    
+    .loader-status { font-size: 9px; font-weight: 800; color: #9ca3af; letter-spacing: 3px; text-transform: uppercase; animation: pulseCrown 1.5s infinite; margin-bottom: 20px;}
+    
+    .pulse-dots span { display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin: 0 3px; opacity: 0.2; animation: dotPulse 1.4s infinite ease-in-out both; }
+    .pulse-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .pulse-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .pulse-dots span:nth-child(3) { animation-delay: 0s; }
+
+    @keyframes spinSlow { 100% { transform: rotate(360deg); } }
+    @keyframes spinFast { 100% { transform: rotate(-360deg); } }
+    @keyframes pulseCrown { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.95); } }
+    @keyframes dotPulse { 0%, 80%, 100% { transform: scale(0); opacity: 0.2; } 40% { transform: scale(1); opacity: 1; box-shadow: 0 0 8px #f59e0b; } }
+
+            /* ================================ */
+        /* VIP SIDEBAR ANIMATION & DESIGN   */
+        /* ================================ */
+        #sidebar { transition: transform 0.3s ease-in-out; z-index: 9999; }
+        .side-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 12px; margin-bottom: 5px; transition: all 0.2s; }
+        .side-link:active { background: rgba(234, 179, 8, 0.2); color: #eab308; transform: scale(0.95); }
+
+            /* ================================ */
+        /* VIP LUXURY DASHBOARD BACKGROUND  */
+        /* ================================ */
+        
+        /* 1. Poore app ka naya VIP background */
+        body {
+            /* Upar halka golden glow, neeche ekdum dark black */
+            background: radial-gradient(circle at top, #1f1800 0%, #0a0a0a 40%, #000000 100%) !important;
+            background-attachment: fixed !important;
+        }
+
+        /* 2. Dashboard ke Card aur Buttons ka design */
+        .glass-card, .dashboard-box {
+            background: rgba(20, 20, 20, 0.7) !important;
+            border: 1px solid rgba(234, 179, 8, 0.15) !important; /* Halka golden border */
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5) !important;
+            backdrop-filter: blur(10px) !important;
+        }
+</style>
+    <link rel="icon" type="image/png" href="/logo.png?v=4">
+    <link rel="apple-touch-icon" href="/logo.png?v=4">
+        <!-- 👑 MASTER THEME ENGINE 👑 -->
+    <script>
+    (function() {
+        // 10+ VIP Colors Setup
+        const themes = {
+            'gold': { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' },
+            'skyblue': { 300: '#e0f2fe', 400: '#7dd3fc', 500: '#0ea5e9', 600: '#0284c7' }, // Tera Favourite
+            'emerald': { 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669' },
+            'pink': { 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777' },
+            'purple': { 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+            'red': { 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            'cyan': { 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            'orange': { 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c' },
+            'blue': { 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb' },
+            'silver': { 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569' }
+        };
+
+        const currentTheme = localStorage.getItem('king_theme') || 'gold';
+        const t = themes[currentTheme];
+
+        // Agar theme Gold nahi hai, toh automatic CSS inject karke pure app ka colour badal do
+        if (currentTheme !== 'gold') {
+            const style = document.createElement('style');
+            style.id = 'vip-theme-engine';
+            style.innerHTML = `
+                :root { --t-300: ${t[300]}; --t-400: ${t[400]}; --t-500: ${t[500]}; --t-600: ${t[600]}; }
+                
+                /* Text Overrides */
+                .text-yellow-300, .text-yellow-400 { color: var(--t-400) !important; }
+                .text-yellow-500, .gold { color: var(--t-500) !important; }
+                .text-yellow-600 { color: var(--t-600) !important; }
+                .text-yellow-500\\/70 { color: color-mix(in srgb, var(--t-500) 70%, transparent) !important; }
+                .text-yellow-500\\/80 { color: color-mix(in srgb, var(--t-500) 80%, transparent) !important; }
+                
+                /* Background Overrides */
+                .bg-yellow-400 { background-color: var(--t-400) !important; }
+                .bg-yellow-500 { background-color: var(--t-500) !important; }
+                .bg-yellow-600 { background-color: var(--t-600) !important; }
+                .bg-yellow-500\\/10 { background-color: color-mix(in srgb, var(--t-500) 10%, transparent) !important; }
+                .bg-yellow-500\\/20 { background-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Border & Gradient Overrides */
+                .border-yellow-400 { border-color: var(--t-400) !important; }
+                .border-yellow-500 { border-color: var(--t-500) !important; }
+                .border-yellow-600 { border-color: var(--t-600) !important; }
+                .border-yellow-500\\/20 { border-color: color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                .border-yellow-500\\/30 { border-color: color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                .border-yellow-500\\/50 { border-color: color-mix(in srgb, var(--t-500) 50%, transparent) !important; }
+                
+                .from-yellow-300 { --tw-gradient-from: var(--t-300) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-400 { --tw-gradient-from: var(--t-400) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .from-yellow-500 { --tw-gradient-from: var(--t-500) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+                .to-yellow-600 { --tw-gradient-to: var(--t-600) !important; }
+                .to-yellow-500 { --tw-gradient-to: var(--t-500) !important; }
+                
+                /* Shadows & Glows */
+                [class*="shadow-[0_0_10px_rgba(234,179,8"] { box-shadow: 0 0 10px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_15px_rgba(245,158,11"] { box-shadow: 0 0 15px color-mix(in srgb, var(--t-500) 30%, transparent) !important; }
+                [class*="shadow-[0_0_20px_rgba(245,158,11"] { box-shadow: 0 0 20px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_10px_30px_rgba(234,179,8"] { box-shadow: 0 10px 30px color-mix(in srgb, var(--t-500) 15%, transparent) !important; }
+                [class*="shadow-[0_0_40px_rgba(234,179,8"] { box-shadow: 0 0 40px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                [class*="shadow-[0_5px_15px_rgba(234,179,8"] { box-shadow: 0 5px 15px color-mix(in srgb, var(--t-500) 20%, transparent) !important; }
+                
+                /* Extra Specific fixes */
+                .theme-icon-dynamic { color: var(--t-500) !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        window.setKingTheme = (themeName) => {
+            localStorage.setItem('king_theme', themeName);
+            window.location.reload(); // Set hote hi turant page refresh hokar naya colour aayega
+        }
+    })();
+    </script>
+</head>
+<body class="max-w-md mx-auto text-white" style="background: radial-gradient(circle at top, #855b00 0%, #1a1100 35%, #000000 100%) !important; background-attachment: fixed !important; min-height: 100vh;">
+    <!-- 🔥 NAYA VIP LOADER HTML 🔥 -->
+    <div id="global-loader" class="hidden">
+        <!-- Background Grid & Corners -->
+        <div class="loader-bg-grid"></div>
+        <div class="corner top-left"></div>
+        <div class="corner top-right"></div>
+        <div class="corner bottom-left"></div>
+        <div class="corner bottom-right"></div>
+
+        <div class="loader-content">
+            <!-- Center Rotating Rings & Crown -->
+            <div class="ring-container">
+                <div class="ring-outer"></div>
+                <div class="ring-inner"></div>
+                <div class="center-icon">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+            </div>
+
+            <!-- Glowing Titles -->
+            <h1 class="loader-title">KING WALLET</h1>
+            <p class="loader-subtitle">VIP DASHBOARD</p>
+
+            <!-- Progress Bar -->
+            <div class="loader-pct-text" id="loader-pct">0%</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="loader-fill"></div>
+            </div>
+            
+            <p class="loader-status" id="loader-status-text">SYNCING SECURE DATA...</p>
+
+            <!-- Pulsing Dots -->
+            <div class="pulse-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+    </div>
+
+<div id="main-dashboard" class="app-screen hidden pb-24 font-sans bg-gradient-to-br from-blue-950 via-slate-900 to-black min-h-screen">
+    
+    <header class="p-5 flex justify-between items-center relative z-[1000] bg-black/80 backdrop-blur-md border-b border-yellow-500/20">
+        <div onclick="window.toggleSidebar()" class="w-10 h-10 flex items-center justify-center cursor-pointer rounded-xl bg-yellow-500/10 text-yellow-500 active:scale-90 transition-all border border-yellow-500/30 relative z-[1001]">
+            <i class="fa-solid fa-bars-staggered text-lg"></i>
+        </div>
+        <div class="flex items-center gap-2">
+            <h1 class="text-xl font-black tracking-[0.15em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]">
+                King Wallet
+            </h1>
+        </div>
+        <div class="w-10"></div> 
+    </header>
+
+    <div class="px-5 space-y-5 mt-6">
+        
+        <div class="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 p-6 rounded-3xl shadow-[0_10px_30px_rgba(234,179,8,0.1)] border border-yellow-500/30 overflow-hidden group">
+            <div class="absolute -right-8 -top-8 opacity-10 text-yellow-500 animate-[spin_15s_linear_infinite]">
+                <i class="fa-solid fa-crown text-[10rem]"></i>
+            </div>
+            <div class="absolute -left-10 -bottom-10 w-32 h-32 bg-yellow-600 opacity-20 blur-3xl rounded-full"></div>
+
+                        <div class="relative z-10 flex justify-end w-full mb-1">
+                <span id="user-rank-badge" class="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-600 text-[8px] font-black text-slate-300 uppercase tracking-wider shadow-inner flex items-center gap-1">
+                    <i class="fa-solid fa-star text-slate-400"></i> NORMAL
+                </span>
+            </div>
+
+            <div class="relative z-10 flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] font-bold text-yellow-500/80 uppercase tracking-widest mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-vault"></i> Total Wealth
+                    </p>
+                    <h2 id="main-balance" class="text-4xl font-black text-white tracking-tight">
+                        ₹0.00
+                    </h2>
+                </div>
+                <button class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500 hover:text-black transition-all">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gray-900 p-4 rounded-3xl border border-gray-800 shadow-lg">
+            <div class="grid grid-cols-4 gap-2">
+                <div onclick="window.showLoaderAndGo('add-fund', 'ADD FUND LOADING...')" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center text-black shadow-[0_0_10px_rgba(234,179,8,0.3)] group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-plus text-xl"></i>
+                    </div>
+                    <span class="text-[8.5px] font-bold text-gray-300 uppercase tracking-wider text-center leading-tight">Add<br>Fund</span>
+                </div>
+                
+                <div onclick="window.showLoaderAndGo('withdraw.html', 'SECURE VAULT LOADING...')" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+    <div class="w-12 h-12 bg-gray-800 border border-yellow-500/30 rounded-2xl flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform">
+        <i class="fa-solid fa-building-columns text-xl"></i>
+    </div>
+    <span class="text-[8.5px] font-bold text-gray-300 uppercase tracking-wider text-center leading-tight">With<br>draw</span>
+                </div>
+
+                <div onclick="localStorage.setItem('userPhone', window.currentUser.phone); window.location.href='p2p.html'" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-12 h-12 bg-gray-800 border border-yellow-500/30 rounded-2xl flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-paper-plane text-xl"></i>
+                    </div>
+                    <span class="text-[8.5px] font-bold text-gray-300 uppercase tracking-wider text-center leading-tight">Pay to<br>User</span>
+                </div>
+
+                <div onclick="showScreen('history-screen')" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-12 h-12 bg-gray-800 border border-yellow-500/30 rounded-2xl flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    </div>
+                    <span class="text-[8.5px] font-bold text-gray-300 uppercase tracking-wider text-center leading-tight">Trans<br>action</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-900 p-4 rounded-3xl border border-gray-800 shadow-lg">
+            <div class="grid grid-cols-4 gap-2">
+                <div onclick="window.goToScratchScreen()" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-10 h-10 bg-gray-800 border border-yellow-500/30 rounded-xl flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-gift text-sm"></i>
+                    </div>
+                    <span class="text-[8px] font-bold text-gray-400 uppercase tracking-wider text-center leading-tight">My<br>Scratch</span>
+                </div>
+
+                <div onclick="window.openSpinWheel()" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-10 h-10 bg-gray-800 border border-yellow-500/30 rounded-xl flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-dharmachakra fa-spin text-sm"></i>
+                    </div>
+                    <span class="text-[8px] font-bold text-gray-400 uppercase tracking-wider text-center leading-tight">Free<br>Spin</span>
+                </div>
+
+                <div onclick="window.copyReferralLink()" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-10 h-10 bg-gray-800 border border-yellow-500/30 rounded-xl flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-share-nodes text-sm"></i>
+                    </div>
+                    <span class="text-[8px] font-bold text-gray-400 uppercase tracking-wider text-center leading-tight">Refer<br>Earn</span>
+                </div>
+
+                <div id="claim-btn" class="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group">
+                    <div class="w-10 h-10 bg-gray-800 border border-yellow-500/30 rounded-xl flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-ticket-simple text-sm"></i>
+                    </div>
+                    <span class="text-[8px] font-bold text-gray-400 uppercase tracking-wider text-center leading-tight">Claim<br>Code</span>
+                </div>
+            </div>
+        </div>
+
+        <div onclick="document.getElementById('bulk-balance-display').innerText = '₹' + window.currentUser.balance; window.showScreen('bulk-screen');" class="bg-gradient-to-r from-yellow-600 to-yellow-800 p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all cursor-pointer shadow-[0_5px_15px_rgba(234,179,8,0.3)] border border-yellow-400 group">
+            <i class="fa-solid fa-layer-group text-black text-xl group-hover:scale-110 transition-transform"></i>
+            <span class="text-sm font-black text-black uppercase tracking-[0.2em]">Bulk Pay</span>
+        </div>
+    </div>
+</div>
+    
+<div id="pin-modal" class="fixed inset-0 bg-[#050505]/90 backdrop-blur-md z-[5000] hidden flex items-center justify-center p-4 transition-all duration-300">
+    <div class="bg-gradient-to-b from-[#111] to-[#0a0a0a] w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-[0_0_50px_rgba(245,158,11,0.15)] border border-yellow-500/20 relative overflow-hidden">
+        
+        <div class="absolute -top-20 -right-20 w-40 h-40 bg-yellow-600 opacity-20 blur-[50px] rounded-full pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-orange-600 opacity-20 blur-[50px] rounded-full pointer-events-none"></div>
+
+        <button onclick="document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('input-pin').value='';" class="absolute top-6 right-6 w-10 h-10 bg-white/5 border border-white/10 text-gray-400 hover:text-yellow-500 rounded-xl flex items-center justify-center active:scale-90 transition-all z-10 shadow-inner">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <div class="mb-8 mt-2 relative z-10">
+            <div class="w-20 h-20 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 text-yellow-500 border border-yellow-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                <i class="fa-solid fa-fingerprint text-4xl animate-pulse"></i>
+            </div>
+            <h2 class="text-2xl font-black text-white tracking-widest uppercase">Vault Secured</h2>
+            <p class="text-[10px] text-yellow-500/70 font-bold mt-2 uppercase tracking-[0.2em]">Enter 4-Digit Identity Code</p>
+        </div>
+
+        <div class="relative z-10 mb-8">
+            <input id="input-pin" type="password" inputmode="numeric" readonly maxlength="4" class="w-full bg-black/50 border border-white/10 rounded-2xl p-5 text-center text-3xl text-yellow-500 font-black tracking-[1.5rem] outline-none shadow-inner focus:border-yellow-500/50 transition-all placeholder:text-gray-700">
+        </div>
+        
+        <div class="grid grid-cols-3 gap-4 px-1 relative z-10">
+            <button onclick="addPin('1')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">1</button>
+            <button onclick="addPin('2')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">2</button>
+            <button onclick="addPin('3')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">3</button>
+            
+            <button onclick="addPin('4')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">4</button>
+            <button onclick="addPin('5')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">5</button>
+            <button onclick="addPin('6')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">6</button>
+            
+            <button onclick="addPin('7')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">7</button>
+            <button onclick="addPin('8')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">8</button>
+            <button onclick="addPin('9')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">9</button>
+            
+            <button onclick="backspacePin()" class="h-16 flex items-center justify-center bg-white/5 border border-white/10 shadow-inner rounded-2xl text-gray-400 font-black text-xl active:scale-90 active:bg-red-500/20 active:text-red-500 transition-all"><i class="fa-solid fa-delete-left"></i></button>
+            
+            <button onclick="addPin('0')" class="h-16 bg-white/5 border border-white/10 shadow-inner rounded-2xl text-white font-bold text-2xl active:scale-90 active:bg-yellow-500/20 active:text-yellow-500 active:border-yellow-500/50 transition-all">0</button>
+            
+            <button onclick="window.handlePIN()" class="h-16 flex items-center justify-center bg-gradient-to-br from-yellow-500 to-orange-600 shadow-[0_0_15px_rgba(245,158,11,0.4)] rounded-2xl font-black text-black text-xl active:scale-90 transition-all border border-yellow-400"><i class="fa-solid fa-check"></i></button>
+        </div>
+    </div>
+</div>
+
+    <div id="bulk-screen" class="app-screen hidden min-h-screen bg-slate-50 pb-20">
+        <div class="flex items-center p-4 bg-white shadow-sm">
+            <button onclick="window.showScreen('main-dashboard')" class="text-slate-600">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+            <h2 class="ml-4 font-bold text-slate-800 tracking-wide">BULK SEND</h2>
+        </div>
+
+        <div class="p-4 space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+                <span class="text-slate-400 font-bold text-xs tracking-wider">BALANCE</span>
+                <span class="text-blue-600 font-black text-lg" id="bulk-balance-display">₹0.00</span>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-5 text-blue-600 opacity-80">
+                    <i class="fa-solid fa-users text-sm"></i>
+                    <span class="font-bold text-xs tracking-wider">RECIPIENTS</span>
+                </div>
+
+                <label class="block text-[10px] font-bold text-slate-400 mb-2 tracking-wider">MOBILE NUMBERS (EK PER LINE)</label>
+                <textarea id="bulk-numbers" rows="5" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-slate-700 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-5 transition-all placeholder:text-slate-300" placeholder="9876543210&#10;9123456789"></textarea>
+
+                <label class="block text-[10px] font-bold text-slate-400 mb-2 tracking-wider">AMOUNT (₹) — SABKO SAME</label>
+                <input type="number" id="bulk-amount" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-slate-700 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-5 transition-all placeholder:text-slate-300" placeholder="0.00">
+
+                <label class="block text-[10px] font-bold text-slate-400 mb-2 tracking-wider">COMMENT (OPTIONAL)</label>
+                <input type="text" id="bulk-comment" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-slate-700 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-6 transition-all placeholder:text-slate-300" placeholder="e.g. Bonus, Reward..."></input>
+
+                <button onclick="window.processBulkSend()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 active:scale-95 transition-all flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> SEND TO ALL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pay-screen" class="app-screen hidden min-h-screen bg-[#f4f7fb] text-slate-800 pb-24">
+        
+        <div class="bg-white px-6 py-4 flex items-center gap-4 shadow-sm">
+            <button onclick="showScreen('main-dashboard')" class="text-gray-500 hover:text-slate-800 transition">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+            <h1 class="text-xl font-black tracking-tight uppercase">Send Money</h1>
+        </div>
+
+        <div class="px-4 mt-6 space-y-4">
+            
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Balance</span>
+                <span id="pay-avail-bal" class="text-lg font-black text-blue-600">₹0.00</span> 
+            </div>
+
+            <div class="bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100 space-y-5">
+
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Receiver Number</label>
+                    <div class="relative">
+                        <input id="pay-phone" oninput="window.checkReceiver(this.value)" type="number" placeholder="Enter mobile number" class="text-black w-full bg-gray-50 p-4 rounded-xl border border-gray-100 outline-none focus:border-blue-500 transition font-medium text-sm">
+                        <button class="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-50 text-blue-600 h-8 w-8 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-qrcode"></i>
+                        </button>
+                    </div>
+                    <div id="receiver-name-display" class="text-[10px] font-black text-blue-600 ml-1 hidden mt-1"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Amount (₹)</label>
+                    <input id="pay-amt" type="number" placeholder="0.00" class="text-black w-full bg-gray-50 p-4 rounded-xl border border-gray-100 outline-none focus:border-blue-500 transition font-medium text-sm">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Comment (Optional)</label>
+                    <input id="pay-msg" type="text" placeholder="e.g. Rent, Birthday gift..." class="text-black w-full bg-gray-50 p-4 rounded-xl border border-gray-100 outline-none focus:border-blue-500 transition font-medium text-sm">
+                </div>
+
+                <button onclick="window.currentTask='PAY'; document.getElementById('pin-modal').classList.remove('hidden');" class="w-full bg-[#0057ff] text-white font-bold rounded-xl py-4 hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-md shadow-blue-500/30 text-sm">
+                    <i class="fa-solid fa-paper-plane"></i> SEND MONEY
+                </button>
+            </div>
+
+            <a href="https://t.me/KING_WALLET_SUPPORT" target="_blank" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition block">
+                <div class="flex items-center gap-3">
+                    <div class="bg-[#111827] text-white h-10 w-10 rounded-xl flex items-center justify-center text-lg shadow-sm">
+                        <i class="fa-solid fa-headset"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-800">Need Help?</h3>
+                        <p class="text-[10px] font-bold text-gray-400 mt-0.5">Talk to @KING_WALLET_SUPPORT</p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-arrow-right text-blue-500"></i>
+            </a>
+
+        </div>
+    </div>
+
+    <div id="add-fund" class="app-screen hidden p-4 pb-24 min-h-screen">
+        
+        <div class="flex items-center mb-6 mt-2 relative z-10">
+            <button onclick="showScreen('main-dashboard')" class="text-gray-300 hover:text-yellow-500 mr-4 transition active:scale-90 glass-card w-10 h-10 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+            <h2 class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 tracking-widest uppercase italic">Add VIP Fund</h2>
+        </div>
+
+        <div class="glass-card rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+            
+            <div class="relative bg-[#050505] rounded-3xl p-6 text-center text-white mb-8 border border-white/5 overflow-hidden z-10 shadow-[0_0_30px_rgba(0,0,0,0.8)_inset]">
+                
+                <div class="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
+                    <div class="w-32 h-32 bg-green-500/20 rounded-full blur-[40px] animate-pulse"></div>
+                    <div class="absolute w-[150%] h-[150%] border-[2px] border-dashed border-green-500/30 rounded-full animate-[spin_12s_linear_infinite]"></div>
+                </div>
+
+                <div class="relative z-10 mt-2">
+                    <p class="text-[10px] text-green-400 font-black mb-2 uppercase tracking-[0.2em]">Pay to Official UPI</p>
+                    <h3 class="text-xl font-black mb-6 tracking-wider text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">kingdipak@fam</h3>
+                    
+                    <button onclick="copyUPI()" class="bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 border border-green-400/50">
+                        <i class="fa-regular fa-copy mr-2"></i> Copy UPI ID
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-8 relative z-10">
+                <h4 class="text-[11px] font-black text-yellow-500 mb-5 uppercase tracking-[0.15em] flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-yellow-500"></i> How it works
+                </h4>
+                <div class="space-y-5">
+                    <div class="flex gap-4 items-start">
+                        <div class="w-7 h-7 rounded-full bg-yellow-500/10 text-yellow-500 flex items-center justify-center text-xs font-black border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">1</div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-200 uppercase tracking-wide">UPI se Pay karo</p>
+                            <p class="text-[10px] text-gray-500 mt-1 tracking-wide">Upar diye UPI ID pe payment karo</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start">
+                        <div class="w-7 h-7 rounded-full bg-yellow-500/10 text-yellow-500 flex items-center justify-center text-xs font-black border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">2</div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-200 uppercase tracking-wide">UTR Number note karo</p>
+                            <p class="text-[10px] text-gray-500 mt-1 tracking-wide">Payment ke baad 12 digit UTR milega</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-start">
+                        <div class="w-7 h-7 rounded-full bg-yellow-500/10 text-yellow-500 flex items-center justify-center text-xs font-black border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">3</div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-200 uppercase tracking-wide">Neeche submit karo</p>
+                            <p class="text-[10px] text-gray-500 mt-1 tracking-wide">UTR aur amount fill karke submit karo</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-white/5 my-6 -mx-6"></div>
+
+            <div class="relative z-10">
+                <h4 class="text-[11px] font-black text-yellow-500 mb-5 uppercase tracking-[0.15em] flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Submit Details
+                </h4>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-400 mb-2 ml-1 uppercase tracking-widest">UTR / Transaction No.</label>
+                        <input type="number" id="dep-utr" placeholder="12-digit UTR number" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-white text-sm font-bold focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 transition placeholder-gray-700">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-400 mb-2 ml-1 uppercase tracking-widest">Amount Paid (₹)</label>
+                        <input type="number" id="dep-amt" placeholder="Enter exact amount" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-white text-sm font-bold focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 transition placeholder-gray-700">
+                    </div>
+
+<button onclick="window.triggerDepositPin()" class="w-full mt-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-4 text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-[0_0_20px_rgba(16,185,129,0.3)] active:scale-95 transition flex justify-center items-center gap-2 border border-green-400/50">
+    <i class="fa-solid fa-paper-plane"></i> Submit For Verification
+</button>
+                </div>
+                
+                <div class="mt-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center">
+                    <p class="text-[9px] font-black text-red-400 uppercase tracking-widest leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation mr-1 text-red-500 text-lg block mb-1"></i> 
+                        Exact UTR number daalo - galat UTR pe balance add nahi hoga!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+<div id="scratch-screen" class="app-screen hidden p-4 pb-24 min-h-screen">
+    <div class="flex items-center mb-6 mt-2 relative z-10">
+        <button onclick="window.showLoaderAndGo('main-dashboard', 'KING WALLET LOADING...')" class="text-gray-300 mr-4 glass-card w-10 h-10 rounded-full flex items-center justify-center">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h2 class="text-lg font-black text-yellow-500 uppercase italic">My Rewards</h2>
+    </div>
+
+    <div class="glass-card rounded-[2rem] p-6 mb-8 text-center">
+        <h3 class="text-gray-400 text-[10px] font-black uppercase mb-2">Total Winnings</h3>
+        <h1 class="text-4xl font-black text-green-500">₹0.00</h1>
+    </div>
+
+    <h4 class="text-[11px] font-black text-yellow-500 mb-5 uppercase tracking-widest">Available Cards</h4>
+    
+    <div id="my-cards-box" class="grid grid-cols-2 gap-4">
+        <div id="empty-card-msg" class="col-span-2 text-center py-8 opacity-50">
+            <i class="fa-solid fa-box-open text-4xl mb-3"></i>
+            <p class="text-[10px] font-black uppercase">No Cards Available</p>
+        </div>
+    </div>
+</div>
+
+        <div id="withdraw-screen" class="app-screen hidden min-h-screen bg-slate-50 text-slate-800 pb-24 font-sans">
+            
+            <div class="bg-white px-6 py-5 flex items-center gap-4 shadow-sm sticky top-0 z-10 rounded-b-3xl">
+                <button onclick="window.showScreen('main-dashboard')" class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 active:scale-95 transition-all">
+                    <i class="fa-solid fa-arrow-left text-lg"></i>
+                </button>
+                <h1 class="text-xl font-black tracking-tight text-slate-800">Withdraw Funds</h1>
+            </div>
+
+            <div class="px-5 mt-6 space-y-5">
+                
+                <div class="bg-gradient-to-r from-blue-600 to-blue-800 p-6 rounded-[2rem] shadow-lg shadow-blue-200 text-white flex justify-between items-center relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-white opacity-10 rounded-full blur-xl"></div>
+                    <div class="relative z-10">
+                        <span class="text-[11px] font-bold text-blue-100 uppercase tracking-widest block mb-1">Available Balance</span>
+                        <span id="withdraw-avail-bal" class="text-3xl font-black">₹0.00</span>
+                    </div>
+                    <i class="fa-solid fa-building-columns text-4xl opacity-40 relative z-10"></i>
+                </div>
+
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 space-y-5 relative">
+                    
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-black text-slate-400 pl-2 uppercase tracking-wider">Transfer To (UPI ID)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fa-brands fa-google-pay text-slate-400 text-lg"></i>
+                            </div>
+                            <input id="withdraw-upi" type="text" placeholder="e.g., kingwallet@ybl" class="w-full pl-11 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white transition-all focus:ring-4 focus:ring-blue-50">
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-black text-slate-400 pl-2 uppercase tracking-wider">Withdraw Amount (₹)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <span class="text-slate-400 font-black text-lg">₹</span>
+                            </div>
+                            <input id="withdraw-amt" type="number" placeholder="Min. ₹10" class="w-full pl-10 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all focus:ring-4 focus:ring-blue-50">
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50/50 p-4 rounded-2xl space-y-3 border border-blue-100/50">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500 font-bold">Minimum Withdraw</span>
+                            <span class="font-black text-slate-700">₹10</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500 font-bold">Processing Time</span>
+                            <span class="font-black text-blue-600 bg-blue-100 px-2 py-1 rounded-lg">Within 24 Hrs</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500 font-bold">Transfer Fee</span>
+                            <span class="font-black text-green-600 bg-green-100 px-2 py-1 rounded-lg">₹0 (Free)</span>
+                        </div>
+                    </div>
+
+                    <button onclick="window.currentTask='WITHDRAW'; document.getElementById('pin-modal').classList.remove('hidden')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-2xl shadow-xl shadow-slate-200 active:scale-95 transition-all flex justify-center items-center gap-2 mt-2">
+                        WITHDRAW YOUR FUND <i class="fa-solid fa-arrow-right-long"></i>
+                    </button>
+                </div>
+
+                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex gap-3 items-start">
+                    <i class="fa-solid fa-shield-halved text-orange-500 text-lg mt-0.5"></i>
+                    <p class="text-[11px] font-bold text-orange-700 leading-relaxed">
+                        Aapki withdraw request secure hai. Admin ise check karke 24 ghante ke andar process kar denge.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+<div id="history-screen" class="app-screen hidden min-h-screen bg-gradient-to-br from-blue-950 via-slate-900 to-black pb-24 z-[5000]">
+    
+    <div class="px-5 py-5 flex justify-between items-center bg-black/80 backdrop-blur-md border-b border-yellow-500/20 relative z-10">
+        <div class="flex items-center gap-4">
+            <button onclick="showScreen('main-dashboard')" class="w-10 h-10 flex items-center justify-center rounded-xl bg-yellow-500/10 text-yellow-500 active:scale-90 transition-all border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+            <h1 class="text-xl font-black tracking-[0.15em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]">History</h1>
+        </div>
+        <button class="bg-gray-800 border border-yellow-500/50 text-yellow-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all shadow-[0_0_10px_rgba(234,179,8,0.2)] hover:bg-gray-700">
+            <i class="fa-solid fa-download"></i> PDF
+        </button>
+    </div>
+
+    <div class="px-5 mt-6">
+        <div class="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-[2rem] p-6 shadow-[0_10px_30px_rgba(234,179,8,0.15)] border border-yellow-500/30 overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 opacity-10 text-yellow-500">
+                <i class="fa-solid fa-clock-rotate-left text-[8rem]"></i>
+            </div>
+            <div class="absolute -left-10 -bottom-10 w-32 h-32 bg-yellow-600 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
+            
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-yellow-500/80 tracking-widest uppercase mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-vault"></i> Available Balance
+                </p>
+                <h2 id="history-avail-bal" class="text-4xl font-black text-white tracking-tight drop-shadow-md">₹0.00</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-5 mt-5">
+        <div class="bg-black/50 p-1.5 rounded-2xl flex shadow-inner border border-gray-800 relative z-10">
+            <button onclick="window.switchHistoryTab('TXN')" id="tab-txn" class="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)] font-black py-3.5 rounded-xl text-[10px] tracking-widest uppercase transition-all">
+                TRANSACTIONS
+            </button>
+            <button onclick="window.switchHistoryTab('WITHDRAW')" id="tab-withdraw" class="flex-1 text-gray-400 hover:text-yellow-500 font-bold py-3.5 rounded-xl text-[10px] tracking-widest uppercase transition-all flex justify-center items-center gap-1.5">
+                <i class="fa-solid fa-arrow-up"></i> WITHDRAWALS
+            </button>
+        </div>
+    </div>
+
+    <div class="px-5 mt-5">
+        <div id="history-list" class="bg-gray-900/80 backdrop-blur-sm rounded-[1.5rem] p-3 shadow-lg border border-yellow-500/20 min-h-[300px] overflow-hidden relative z-10">
+            </div>
+    </div>
+</div>
+
+    <div id="api-screen" class="app-screen hidden min-h-screen bg-[#f4f7ff] pb-24 font-sans">
+        <div class="flex items-center p-5 bg-white shadow-sm sticky top-0 z-10">
+            <button onclick="window.showScreen('main-dashboard')" class="w-8 h-8 flex items-center justify-center rounded-full border border-slate-200 text-slate-600 active:scale-90 transition-all">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h2 class="ml-4 font-black text-slate-800 text-lg tracking-wide">API SETTINGS</h2>
+        </div>
+
+        <div class="p-4 space-y-5 mt-2">
+            
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-link text-blue-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Payment API URL</h3>
+                </div>
+                
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative mb-5">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2">FULL API URL</p>
+                    <p class="text-xs font-mono text-slate-300 break-all leading-relaxed">
+                        https://king-wallet-pn77.vercel.app/api/pay?key=<span class="text-emerald-400 user-api-key-text">KW-ZWCHRTPQYX</span>&paytm=<span class="text-yellow-400">{number}</span>&amount=<span class="text-yellow-400">{amount}</span>&comment=<span class="text-yellow-400">payout</span>
+                    </p>
+                    <button onclick="window.copyApiText('api-url-full')" class="absolute top-3 right-3 w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 active:scale-90">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-sliders text-slate-400"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Parameters</h3>
+                </div>
+                
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">key <span class="text-red-500">*</span></span><span class="text-slate-500 text-xs">Your API Key</span></div>
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">paytm <span class="text-red-500">*</span></span><span class="text-slate-500 text-xs">Receiver number</span></div>
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">amount <span class="text-red-500">*</span></span><span class="text-slate-500 text-xs">Amount in ₹ (min ₹1)</span></div>
+                    <div class="flex justify-between border-b border-slate-50 pb-2"><span class="font-bold text-slate-700 tracking-wide">comment</span><span class="text-slate-500 text-xs">Optional comment</span></div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-key text-yellow-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Your API Key</h3>
+                </div>
+                <div class="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl flex justify-between items-center mb-5">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 mb-1">API KEY</p>
+                        <p class="text-sm font-bold text-blue-600 user-api-key-text" id="api-key-input-display">KW-ZWCHRTPQYX</p>
+                    </div>
+                    <button onclick="window.copyApiText('api-key-only')" class="bg-white border border-slate-200 text-blue-600 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 active:scale-95 shadow-sm">
+                        <i class="fa-regular fa-copy"></i> Copy
+                    </button>
+                </div>
+                
+                <button onclick="window.generateUserApiKey()" class="w-full border border-blue-200 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl flex justify-center items-center gap-2 text-sm active:scale-95 transition-all">
+                    <i class="fa-solid fa-rotate-right"></i> REGENERATE API KEY
+                </button>
+            </div>
+
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 space-y-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Response Examples</h3>
+                </div>
+
+                <div class="bg-[#0b2218] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-emerald-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-check"></i> SUCCESS RESPONSE</p>
+                    <pre class="text-[11px] font-mono text-emerald-100/80 leading-relaxed">{
+  "status": "success",
+  "message": "Payment successful",
+  "data": {
+    "transaction_id": "TXNhgphgfqre1med5sc",
+    "amount": 50,
+    "receiver": {
+      "name": "Name",
+      "number": "number"
+    },
+    "comment": "payout",
+    "timestamp": "16-03-2026 15:12:06"
+  }
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — INVALID KEY</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Invalid API key"
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — LOW BALANCE</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Admin Balance Low"
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — NUMBER NOT FOUND</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Receiver 9876543210 not found"
+}</pre>
+                </div>
+
+                <div class="bg-[#2a0f15] p-4 rounded-2xl">
+                    <p class="text-[10px] font-bold text-red-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-circle-xmark"></i> ERROR — DUPLICATE TXN</p>
+                    <pre class="text-[11px] font-mono text-red-100/80 leading-relaxed">{
+  "status": "error",
+  "message": "Already Claimed! This Transaction ID is used."
+}</pre>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-circle-info text-blue-500"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Other Endpoints</h3>
+                </div>
+
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative mb-4">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">CHECK BALANCE</p>
+                    <p class="text-xs font-mono text-slate-300 break-all leading-relaxed">
+                        https://king-wallet-pn77.vercel.app/payment/balance?key=<span class="text-emerald-400 user-api-key-text">KW-ZWCHRTPQYX</span>
+                    </p>
+                </div>
+
+                <div class="bg-[#0f172a] p-4 rounded-2xl relative">
+                    <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">VERIFY NUMBER</p>
+                    <p class="text-xs font-mono text-slate-300 break-all leading-relaxed">
+                        https://king-wallet-pn77.vercel.app/payment/verify?key=<span class="text-emerald-400 user-api-key-text">KW-ZWCHRTPQYX</span>&number=<span class="text-yellow-400">{number}</span>
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div id="receipt-modal" class="hidden fixed inset-0 bg-slate-950/90 z-[6000] flex flex-col items-center justify-center p-6 backdrop-blur-sm w-full min-h-screen">
+        
+        <div class="w-full glass-card rounded-3xl p-6 border border-slate-800 relative shadow-[0_0_40px_rgba(0,0,0,0.6)] bg-slate-900">
+            <button onclick="document.getElementById('receipt-modal').classList.add('hidden')" class="absolute top-4 right-5 text-slate-500 hover:text-rose-500 text-2xl transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex flex-col items-center mt-2">
+                <div id="receipt-icon-bg" class="h-16 w-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(34,197,94,0.3)] border border-green-500/50">
+                    <i id="receipt-icon" class="fa-solid fa-check"></i>
+                </div>
+                <h2 id="receipt-status" class="text-xl font-black text-white tracking-widest uppercase">SUCCESS</h2>
+            </div>
+
+            <div class="text-center border-b border-slate-800/80 pb-5 mb-5 mt-4">
+                <div id="receipt-type" class="bg-slate-800 inline-block px-3 py-1 rounded-lg text-[10px] font-black text-rose-400 mb-3 tracking-widest uppercase">Transaction</div>
+                
+                <h1 id="receipt-amt" class="text-5xl font-black text-white mt-2 font-mono">₹0.00</h1>
+                
+                <div class="bg-slate-950 rounded-xl py-2 px-4 mt-4 inline-flex items-center justify-center gap-2 border border-slate-700 w-full">
+                    <span id="receipt-id" class="text-slate-300 text-xs font-mono tracking-wider font-bold">TXN...</span>
+                    <i class="fa-regular fa-copy text-slate-500 text-[10px] ml-2"></i>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm font-medium">
+                <div class="flex justify-between items-center"><span class="text-slate-500">From / Sender</span><span id="receipt-sender" class="text-slate-200 font-bold truncate max-w-[150px]">--</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">To / Receiver</span><span id="receipt-receiver" class="text-slate-200 font-bold truncate max-w-[150px]">--</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">Date & Time</span><span id="receipt-date" class="text-slate-200 font-bold text-xs">--</span></div>
+            </div>
+            
+            <div class="mt-5 bg-slate-950 rounded-xl p-4 border border-slate-800">
+                <span class="text-[10px] text-slate-500 uppercase font-black tracking-wider mb-1 block">Comment / Note</span>
+                <p id="receipt-note" class="text-slate-300 italic font-semibold text-sm">--</p>
+            </div>
+
+            <button onclick="document.getElementById('receipt-modal').classList.add('hidden')" class="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-black py-4 rounded-xl text-sm tracking-widest shadow-[0_0_15px_rgba(202,138,4,0.3)] mt-8 mb-2">
+                DONE
+            </button>
+        </div>
+    </div>
+
+<div id="bot-screen" class="app-screen hidden p-8 flex flex-col justify-center text-center">
+    <button onclick="showScreen('main-dashboard')" class="text-left mb-6"><i class="fa-solid fa-arrow-left"></i></button>
+    <h2 class="text-xl font-black italic mb-4 uppercase text-yellow-500">Connect Bot</h2>
+    <input id="user-tg-id" type="number" placeholder="Telegram User ID" class="w-full glass p-5 mb-4 text-center">
+    <button onclick="saveTgId()" class="blue-grad p-4 rounded-xl font-black uppercase">Save</button>
+</div>
+    
+<div id="register-screen" class="app-screen hidden fixed inset-0 bg-gradient-to-br from-blue-950 via-slate-900 to-black p-4 flex items-center justify-center min-h-screen z-[5000] overflow-y-auto">
+    
+    <div class="bg-gray-900/80 backdrop-blur-md rounded-[2.5rem] p-6 border border-yellow-500/30 shadow-[0_15px_50px_rgba(234,179,8,0.15)] w-full max-w-sm relative overflow-hidden my-auto">
+        
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-yellow-600 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
+        <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-600 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
+
+        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 text-center tracking-[0.15em] relative z-10 uppercase">
+            King
+        </h1>
+        <p class="text-[10px] text-yellow-500/70 text-center font-bold tracking-widest mb-6 relative z-10 uppercase">
+            Digital Wallet
+        </p>
+
+        <div class="flex bg-black/50 rounded-xl p-1 mb-6 border border-gray-800 relative z-10 shadow-inner">
+            <button onclick="window.location.href='login.html'" class="flex-1 py-2 text-sm font-bold text-gray-500 hover:text-yellow-500 rounded-lg transition-colors">LOGIN</button>
+            <button class="flex-1 py-2 text-sm font-black text-black bg-gradient-to-r from-yellow-400 to-yellow-600 shadow-[0_0_15px_rgba(234,179,8,0.3)] rounded-lg">REGISTER</button>
+        </div>
+
+        <div class="space-y-4 relative z-10">
+            
+            <div>
+                <label class="block text-[10px] font-bold text-yellow-500/80 mb-1 ml-1 uppercase tracking-wide">Full Name</label>
+                <div class="flex items-center bg-black/50 rounded-2xl px-4 border border-gray-700 focus-within:border-yellow-500 transition-colors shadow-inner h-12">
+                    <i class="fa-solid fa-user text-yellow-500/50 mr-3 text-sm"></i>
+                    <input type="text" id="reg-name" placeholder="Enter your name" class="w-full bg-transparent text-sm font-black outline-none text-white placeholder-gray-600">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-yellow-500/80 mb-1 ml-1 uppercase tracking-widest">Mobile Number</label>
+                <div class="flex items-center bg-black/50 rounded-2xl px-4 border border-gray-700 focus-within:border-yellow-500 transition-colors shadow-inner h-12">
+                    <i class="fa-solid fa-mobile-screen-button text-yellow-500/50 mr-3 text-sm"></i>
+                    <span class="text-gray-400 font-black text-sm pr-2 border-r border-gray-700">+91</span>
+                    <input type="number" id="reg-phone" placeholder="10 Digit Number" 
+                           class="w-full bg-transparent pl-2 text-sm font-black outline-none text-white placeholder-gray-600 tracking-widest"
+                           oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10);">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-yellow-500/80 mb-1 ml-1 uppercase tracking-wide">4-Digit PIN</label>
+                <div class="flex items-center bg-black/50 rounded-2xl px-4 border border-gray-700 focus-within:border-yellow-500 transition-colors shadow-inner h-12">
+                    <i class="fa-solid fa-lock text-yellow-500/50 mr-3 text-sm"></i>
+                    <input type="password" id="reg-pin" placeholder="Create PIN" maxlength="4" class="w-full bg-transparent text-sm font-black outline-none text-white placeholder-gray-600 tracking-widest">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-yellow-500/80 mb-1 ml-1 uppercase tracking-wide">Telegram ID</label>
+                <div class="flex gap-2">
+                    <div class="flex items-center bg-black/50 rounded-2xl px-4 border border-gray-700 focus-within:border-yellow-500 transition-colors shadow-inner h-12 flex-1">
+                        <i class="fa-brands fa-telegram text-yellow-500/50 mr-3 text-sm"></i>
+                        <input type="number" id="reg-tgid" placeholder="Enter Telegram ID" class="w-full bg-transparent text-sm font-black outline-none text-white placeholder-gray-600">
+                    </div>
+                    <button onclick="window.open('https://t.me/userinfobot', '_blank')" class="bg-gray-800 border border-yellow-500/30 text-yellow-500 font-bold px-4 rounded-2xl text-[10px] uppercase tracking-wider hover:bg-gray-700 transition-colors whitespace-nowrap shadow-md active:scale-95">Get ID</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-yellow-500/80 mb-1 ml-1 uppercase tracking-wide">Enter OTP</label>
+                <div class="flex gap-2">
+                    <div class="flex items-center bg-black/50 rounded-2xl px-4 border border-gray-700 focus-within:border-yellow-500 transition-colors shadow-inner h-12 flex-1">
+                        <i class="fa-solid fa-shield-halved text-yellow-500/50 mr-3 text-sm"></i>
+                        <input type="number" id="reg-otp" placeholder="4-Digit OTP" class="w-full bg-transparent text-sm font-black outline-none text-white placeholder-gray-600 tracking-widest">
+                    </div>
+                    <button onclick="sendTelegramOTP()" class="bg-gray-800 border border-yellow-500/30 text-yellow-500 font-bold px-3 rounded-2xl text-[10px] uppercase tracking-wider hover:bg-gray-700 transition-colors whitespace-nowrap shadow-md active:scale-95">Send OTP</button>
+                </div>
+            </div>
+
+            <button onclick="window.open('https://t.me/KingPayAlertBot', '_blank')" class="w-full bg-[#0088cc]/10 border border-[#0088cc]/30 text-white font-bold rounded-2xl py-3 mt-2 hover:bg-[#0088cc]/20 transition-all flex justify-between items-center px-4 shadow-md active:scale-95 group">
+                <div class="flex items-center gap-3">
+                    <i class="fa-brands fa-telegram text-2xl text-[#0088cc] group-hover:scale-110 transition-transform"></i>
+                    <div class="text-left">
+                        <p class="text-[11px] font-black tracking-wide text-[#0088cc] uppercase">Start Bot For OTP</p>
+                        <p class="text-[9px] font-bold text-gray-400 leading-tight">@KingPayAlertBot</p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-arrow-up-right-from-square text-sm text-[#0088cc] opacity-70"></i>
+            </button>
+
+            <div class="flex items-center gap-2 mt-4 px-1">
+                <input type="checkbox" id="reg-tc" class="w-4 h-4 rounded bg-black border-gray-700 text-yellow-500 focus:ring-yellow-500/50 accent-yellow-500 cursor-pointer">
+                <label for="reg-tc" class="text-[10px] font-bold text-gray-400 tracking-wide cursor-pointer">I agree to the <span class="text-yellow-500 underline">Terms & Conditions</span></label>
+            </div>
+
+            <button onclick="window.verifyAndRegister()" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black uppercase tracking-[0.15em] rounded-2xl py-4 mt-2 hover:shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all flex justify-center items-center gap-2 shadow-[0_5px_15px_rgba(234,179,8,0.2)] active:scale-95 text-sm">
+                <i class="fa-solid fa-user-plus text-lg"></i> Create Account
+            </button>
+            
+        </div>
+    </div>
+</div>
+
+<div id="pin-screen" class="app-screen hidden p-8 flex flex-col justify-center text-center">
+    <button onclick="showScreen('main-dashboard')" class="text-left mb-6"><i class="fa-solid fa-arrow-left"></i></button>
+    <h2 class="text-xl font-black italic mb-4 uppercase">Change PIN</h2>
+    <input id="new-pin-val" type="number" placeholder="New 4 Digit PIN" class="w-full glass p-5 mb-4 text-center">
+    <button onclick="updatePIN()" class="blue-grad p-4 rounded-xl font-black uppercase">Update</button>
+</div>
+
+    <!-- Duplicate api-screen removed -->
+
+<div id="claim-screen" class="app-screen hidden min-h-screen bg-slate-900 pb-20 z-[100] absolute top-0 w-full overflow-y-auto">
+        <div class="flex items-center justify-between p-4 bg-black border-b border-white/10 shadow-sm sticky top-0 z-50">
+            <div class="flex items-center">
+                <button onclick="window.showScreen('main-dashboard')" class="text-yellow-500 active:scale-90 transition">
+                    <i class="fa-solid fa-arrow-left text-lg"></i>
+                </button>
+                <h2 class="ml-4 text-xs font-black text-yellow-500 uppercase tracking-widest">VIP GIFT CODES</h2>
+            </div>
+            <button onclick="window.showMyCodes()" class="bg-yellow-500/20 text-yellow-500 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border border-yellow-500/50 active:scale-95 transition">
+                My Codes
+            </button>
+        </div>
+    
+    <div class="p-6 space-y-8 mt-4">
+        <div class="bg-gradient-to-r from-yellow-500 to-amber-600 p-1 rounded-[2rem] shadow-2xl shadow-yellow-500/20">
+            <div class="bg-slate-900 p-6 rounded-[1.8rem] text-center space-y-3">
+                <div class="h-12 w-12 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center mx-auto gold shadow-inner mb-2">
+                    <i class="fa-solid fa-gift text-2xl text-yellow-500"></i>
+                </div>
+                <h3 class="text-md font-black text-yellow-500 uppercase tracking-widest italic">Redeem Code</h3>
+                
+                <input type="text" id="claim-input" placeholder="KING-XXXX" 
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center text-lg font-black text-yellow-500 uppercase tracking-[3px] focus:border-yellow-500 outline-none transition-all mt-2 shadow-inner">
+                
+                <button onclick="window.handleClaimCode()" class="w-full bg-yellow-500 text-black font-black px-6 py-4 rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-yellow-600/20 mt-2">
+                    Claim Reward
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-500 to-blue-600 p-1 rounded-[2rem] shadow-2xl shadow-blue-500/20">
+            <div class="bg-slate-900 p-6 rounded-[1.8rem] text-center space-y-3">
+                <div class="h-12 w-12 bg-blue-500/10 border border-blue-500/30 rounded-full flex items-center justify-center mx-auto text-sky-400 shadow-inner mb-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+                </div>
+                <h3 class="text-md font-black text-sky-400 uppercase tracking-widest italic">Create Gift Code</h3>
+                <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Deduct balance to make a code</p>
+                
+    <input type="number" id="create-code-amount" placeholder="₹ Amount" class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center text-lg font-black text-sky-400 focus:border-sky-500 outline-none transition-all mt-2 shadow-inner">
+
+    <input type="number" id="create-code-users" placeholder="Kitne Users ke liye?" class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center text-lg font-black text-sky-400 focus:border-sky-500 outline-none transition-all mt-2 shadow-inner">
+                
+                <button onclick="window.handleCreateCode()" class="w-full bg-sky-500 text-white font-black px-6 py-4 rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-blue-600/20 mt-2">
+                    Generate Code
+                </button>
+
+                <div id="generated-code-box" class="hidden mt-4 p-4 bg-black/50 rounded-xl border border-dashed border-sky-500/50">
+                    <p class="text-[8px] text-gray-400 uppercase mb-1 tracking-widest">Share this Code:</p>
+                    <p id="new-code-text" class="text-sm font-black text-white tracking-[3px] select-all"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    
+    <div id="my-codes-screen" class="app-screen hidden min-h-screen bg-slate-900 pb-20 z-[100] absolute top-0 w-full overflow-y-auto">
+    <div class="flex items-center p-4 bg-black border-b border-white/10 shadow-sm sticky top-0 z-50">
+        <button onclick="window.showScreen('claim-screen')" class="text-sky-500 active:scale-90 transition">
+            <i class="fa-solid fa-arrow-left text-lg"></i>
+        </button>
+        <h2 class="ml-4 text-xs font-black text-sky-500 uppercase tracking-widest">MY CREATED CODES</h2>
+    </div>
+    
+    <div class="p-4 space-y-4 mt-2" id="my-codes-list">
+        </div>
+    </div>
+
+    <div id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-[#0a0a0a] border-r border-yellow-500/20 z-[999999] transform -translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto pointer-events-auto">
+        <div class="p-6 border-b border-white/5 flex justify-between items-center bg-black">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-crown text-yellow-500"></i>
+                <span class="font-black tracking-widest uppercase italic text-sm text-white">King SideBar</span>
+            </div>
+            <button onclick="window.toggleSidebar()" class="text-gray-500 p-2"><i class="fa-solid fa-xmark text-2xl"></i></button>
+        </div>
+
+        <div class="p-4 space-y-1">
+            <div onclick="window.showLoaderAndGo('profile.html')" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition">
+                <i class="fa-solid fa-user-circle w-6 text-yellow-500"></i> Profile
+            </div>
+            
+            <div onclick="window.showLoaderAndGo('api.html')" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition">
+                <i class="fa-solid fa-code w-6 text-yellow-500"></i> API Key & Settings
+            </div>
+            
+            <div onclick="window.showLoaderAndGo('upi_api.html')" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/10 rounded-xl cursor-pointer transition">
+                <i class="fa-solid fa-bolt w-6 text-yellow-500"></i> UPI API Settings
+         </div>
+            
+            <div onclick="window.showLoaderAndGo('changepin.html')" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition">
+                <i class="fa-solid fa-key w-6 text-yellow-500"></i> Change PIN
+            </div>
+
+                        <div onclick="window.showLoaderAndGo('themes.html', 'LOADING THEMES...')" class="flex items-center justify-between p-3 text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-palette w-6 text-yellow-500 theme-icon-dynamic"></i> VIP Themes
+                </div>
+                <span class="bg-gradient-to-r from-sky-400 to-blue-500 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest animate-pulse shadow-[0_0_10px_rgba(56,189,248,0.5)]">New</span>
+            </div>
+
+            <div onclick="window.showLoaderAndGo('bot-alert.html')" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition">
+                <i class="fa-solid fa-robot w-6 text-yellow-500"></i> Connect TG ID
+            </div>
+
+            <hr class="border-white/5 my-2">
+            
+            <a href="https://t.me/K1NG_WALLET" target="_blank" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/5 rounded-xl transition">
+                <i class="fa-brands fa-telegram w-6 text-blue-400"></i> Official Channel
+            </a>
+
+            <div onclick="window.showLoaderAndGo('support.html')" class="flex items-center gap-3 p-3 text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition">
+                <i class="fa-solid fa-headset w-6 text-yellow-500"></i> Support
+            </div>
+            <div onclick="window.handleLogout()" class="flex items-center gap-3 p-3 text-red-500 mt-4 border-t border-white/5 pt-4 cursor-pointer hover:bg-red-500/10 rounded-xl transition">
+                <i class="fa-solid fa-right-from-bracket w-6 text-center"></i> 
+               <span class="font-bold uppercase tracking-widest text-[10px]">Logout Account</span>
+            </div>     
+        </div>
+    </div>
+
+    <div id="spin-wheel-screen" class="hidden fixed inset-0 z-[100] bg-[#050505]/95 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+    <button onclick="document.getElementById('spin-wheel-screen').classList.add('hidden')" class="absolute top-6 right-6 text-gray-400 border border-gray-700 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
+        <i class="fa-solid fa-xmark text-xl"></i>
+    </button>
+
+    <h2 class="text-3xl font-black text-yellow-500 uppercase italic mb-2 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">Wheel of Fortune</h2>
+    <p class="text-[11px] text-gray-400 mb-10 text-center uppercase tracking-widest">Watch an Ad to spin and win cash! 💸</p>
+
+    <div class="relative w-64 h-64 mb-10">
+        <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-red-500 text-4xl z-10">
+            <i class="fa-solid fa-caret-down drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)]"></i>
+        </div>
+        <div id="the-wheel" class="w-full h-full rounded-full border-4 border-yellow-500 bg-gradient-to-br from-gray-900 to-[#111] flex flex-col items-center justify-center shadow-[0_0_40px_rgba(234,179,8,0.2)] transition-transform duration-[3000ms] ease-out">
+            <i class="fa-solid fa-gem text-5xl text-yellow-500 mb-2"></i>
+            <span class="text-[10px] font-black text-white uppercase">Jackpot</span>
+        </div>
+    </div>
+
+    <button id="spin-btn" onclick="window.startSpinWithAd()" class="tap w-full max-w-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-3">
+        <i class="fa-solid fa-play"></i>
+        WATCH AD & SPIN
+    </button>
+
+    <p id="spin-msg" class="text-yellow-400 text-sm font-bold mt-6 h-6 text-center"></p>
+    </div>
+    <script src="spin-wheel.js"></script>
+</body>
+</html>

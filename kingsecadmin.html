@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KING WALLET - OWNER PANEL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; }
+    </style>
+</head>
+<body class="w-full bg-slate-50 text-slate-800 overflow-x-hidden">
+
+    <div id="login-screen" class="w-full max-w-sm mt-32 bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700 text-center">
+        <i class="fa-solid fa-crown text-5xl text-yellow-500 mb-4 drop-shadow-lg"></i>
+        <h2 class="text-2xl font-black tracking-widest text-white mb-6">OWNER LOGIN</h2>
+        
+        <input type="password" id="boss-pin" class="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl mb-6 text-center tracking-[1em] font-bold text-white focus:outline-none focus:border-blue-500" placeholder="••••">
+        
+        <button onclick="window.checkBossPin()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/30 active:scale-95 transition-all">
+            UNLOCK PANEL
+        </button>
+    </div>
+
+      <div id="admin-panel" class="app-screen hidden min-h-screen w-full bg-[#f4f7fb] text-slate-800 pb-10">
+        
+        <div class="bg-white px-6 py-4 flex justify-between items-center shadow-sm">
+            <h1 class="text-2xl font-black tracking-tight"><span class="text-blue-600">KING</span> <span class="text-gray-400 font-light">OWNER</span></h1>
+            <div class="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+                <div class="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-bold text-blue-600 tracking-widest">ONLINE</span>
+            </div>
+        </div>
+
+        <div class="px-4 mt-6">
+            <div class="flex flex-nowrap items-center gap-2 overflow-x-auto w-full pb-2 hide-scrollbar bg-white p-2 rounded-2xl shadow-sm">
+                <button onclick="window.showAdminTab('STATS')" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap shadow-md shadow-blue-500/30">
+                    <i class="fa-solid fa-chart-simple"></i> STATS
+                </button>
+                <button onclick="window.showAdminTab('WITHDRAW')" class="text-gray-500 hover:bg-gray-50 px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition">
+                    <i class="fa-solid fa-money-bill-wave text-green-500"></i> WITHDRAW
+                </button>
+                <button onclick="window.showAdminTab('DEPOSIT')" class="text-gray-500 hover:bg-gray-50 px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition">
+                    <i class="fa-solid fa-credit-card text-yellow-500"></i> DEPOSITS
+                </button>
+                <button onclick="window.showAdminTab('USERS')" class="flex-1 py-3 text-xs font-bold text-gray-400 border-b-2 border-transparent transition" id="tab-USERS">USERS</button>
+            </div>
+        </div>
+
+        <div id="admin-stats-grid" class="px-4 mt-6">
+            
+            <h2 class="text-xs font-black text-blue-800 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-chart-pie text-blue-500"></i> Real-time Dashboard</h2>
+            
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div class="absolute -right-3 -top-3 text-blue-50/50 text-5xl"><i class="fa-solid fa-users"></i></div>
+                    <h3 id="admin-tot-users" class="text-2xl font-black text-slate-800 relative z-10">...</h3>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase mt-1 relative z-10">Total Registered Users</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div class="absolute -right-3 -top-3 text-violet-50/50 text-5xl"><i class="fa-solid fa-user-plus"></i></div>
+                    <h3 id="admin-today-users" class="text-2xl font-black text-slate-800 relative z-10">0</h3>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase mt-1 relative z-10">Today New Users</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div class="absolute -right-3 -top-3 text-emerald-50/50 text-5xl"><i class="fa-solid fa-wallet"></i></div>
+                    <h3 id="admin-tot-bal" class="text-xl font-black text-slate-800 relative z-10">₹...</h3>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase mt-1 relative z-10">Total Wallet Assets</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div class="absolute -right-3 -top-3 text-orange-50/50 text-5xl"><i class="fa-solid fa-bolt"></i></div>
+                    <h3 id="admin-tot-txns" class="text-2xl font-black text-slate-800 relative z-10">...</h3>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase mt-1 relative z-10">Total Transactions</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div class="absolute -right-3 -top-3 text-pink-50/50 text-5xl"><i class="fa-solid fa-server"></i></div>
+                    <h3 id="admin-api-vol" class="text-2xl font-black text-slate-800 relative z-10">...</h3>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase mt-1 relative z-10">API Volume</p>
+                </div>
+
+            </div>
+
+            <h2 class="text-xs font-black text-blue-800 mb-3 flex items-center gap-2 uppercase tracking-widest"><i class="fa-solid fa-sliders text-blue-500"></i> Administrative Actions</h2>
+            
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button onclick="window.showAdminTab('USERS')" class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition">
+                    <div class="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center mb-2"><i class="fa-solid fa-user-shield text-slate-700"></i></div>
+                    <span class="text-[10px] font-black text-slate-700 uppercase">Manage Users</span>
+                </button>
+
+                <button onclick="window.showAdminTab('WITHDRAW')" class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition">
+                    <div class="h-10 w-10 bg-pink-50 rounded-full flex items-center justify-center mb-2"><i class="fa-solid fa-money-bill-transfer text-pink-600"></i></div>
+                    <span class="text-[10px] font-black text-slate-700 uppercase">Pending Withdraws</span>
+                </button>
+
+                <button onclick="window.showAdminTab('DEPOSIT')" class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition">
+                    <div class="h-10 w-10 bg-emerald-50 rounded-full flex items-center justify-center mb-2"><i class="fa-solid fa-building-columns text-emerald-600"></i></div>
+                    <span class="text-[10px] font-black text-slate-700 uppercase">Deposit Requests</span>
+                </button>
+
+                <button onclick="alert('Password Reset aane wala hai!')" class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition">
+                    <div class="h-10 w-10 bg-orange-50 rounded-full flex items-center justify-center mb-2"><i class="fa-solid fa-lock text-orange-600"></i></div>
+                    <span class="text-[10px] font-black text-slate-700 uppercase">Password Reset</span>
+                </button>
+            </div>
+        </div>
+
+               <button onclick="window.resetApiData()" class="w-full mt-4 flex justify-center items-center gap-3 p-4 bg-red-50 rounded-2xl shadow-sm border border-red-200 active:scale-95 transition">
+                <div class="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-rotate-right text-red-600"></i></div>
+                <div class="text-left">
+                    <span class="block text-xs font-black text-red-700 uppercase">Reset Display to 0</span>
+                    <span class="block text-[9px] font-bold text-red-500 uppercase">Users data stays safe!</span>
+                </div>
+               </button>
+
+                      <div class="mt-6 bg-white p-5 rounded-3xl shadow-sm border border-red-100">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="h-10 w-10 bg-red-50 rounded-full flex items-center justify-center">
+                        <i class="fa-solid fa-user-shield text-red-600 text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-slate-800 uppercase tracking-wide">Fraud Control Engine</h3>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Ban or Unban Users instantly</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2">
+                    <input type="number" id="fraud-phone-input" placeholder="Enter User Phone No." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-red-500">
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="window.banUser()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs py-3 rounded-xl shadow-md shadow-red-200 active:scale-95 transition">
+                        <i class="fa-solid fa-ban mr-1"></i> BAN
+                    </button>
+                    <button onclick="window.unbanUser()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-black uppercase text-xs py-3 rounded-xl shadow-md shadow-green-200 active:scale-95 transition">
+                        <i class="fa-solid fa-check mr-1"></i> UNBAN
+                    </button>
+                </div>
+            </div>
+
+        <div id="admin-request-container" class="px-4 mt-6 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="admin-list-title" class="text-sm font-black text-slate-800 uppercase tracking-wider">Pending Requests</h3>
+                <span id="admin-req-count" class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-md font-bold">0</span>
+            </div>
+            <div id="admin-requests-list" class="space-y-3">
+                </div>
+        </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc,setDoc, updateDoc, collection, addDoc, getDocs, deleteDoc, increment, query, where, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 🚨 TERA FIREBASE CONFIG YAHAN AAYEGA 🚨
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw6aKP8je-DzvengJ-ffxtez6xZFpQFn4",
+  authDomain: "king-wallet-49888.firebaseapp.com",
+  projectId: "king-wallet-49888",
+  storageBucket: "king-wallet-49888.firebasestorage.app",
+  messagingSenderId: "698310935797",
+  appId: "1:698310935797:web:85e03b49237225a7b371bc",
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.db = db;
+
+        // --- LOGIN LOCK LOGIC ---
+        window.checkBossPin = () => {
+            const pin = document.getElementById('boss-pin').value;
+            if(pin === "9770") { 
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                window.loadAdminStats();  // Dashboard update karo
+            } else {
+                alert("❌ WRONG PIN! Tum Boss nahi ho.");
+                document.getElementById('boss-pin').value = "";
+            }
+        };
+
+        // ==========================================
+        // --- KING ADMIN PANEL VIP ENGINE ---
+        // ==========================================
+
+        // 1. Stats aur Dashboard Live Load Karna (SMART BYPASS)
+        window.loadAdminStats = async () => {
+            document.getElementById('admin-tot-users').innerText = "...";
+            document.getElementById('admin-tot-txns').innerText = "...";
+            document.getElementById('admin-tot-bal').innerText = "₹...";
+            document.getElementById('admin-api-vol').innerText = "₹...";
+
+            try {
+                // Pehle "Hidden Memory" check karo
+                let offsetTxns = 0;
+                let offsetVol = 0;
+                const memorySnap = await getDoc(doc(db, "adminConfig", "resetMemory"));
+                if (memorySnap.exists()) {
+                    offsetTxns = memorySnap.data().hiddenTxns || 0;
+                    offsetVol = memorySnap.data().hiddenVol || 0;
+                }
+
+                const usersCol = collection(db, "users");
+                const transCol = collection(db, "transactions"); 
+
+                const userCountSnap = await getCountFromServer(usersCol);
+                const transCountSnap = await getCountFromServer(transCol);
+                
+                let rawTxns = transCountSnap.data().count;
+                let displayTxns = rawTxns - offsetTxns; // Purane load ko hide karo
+                if (displayTxns < 0) displayTxns = 0;
+
+                document.getElementById('admin-tot-users').innerText = userCountSnap.data().count;
+                document.getElementById('admin-tot-txns').innerText = displayTxns; // Zero dikhayega
+
+                const userSnap = await getDocs(usersCol);
+                let todayCount = 0;
+                let todayDate = new Date().toISOString().split('T')[0];
+                let totalBal = 0;
+
+                userSnap.forEach(doc => { 
+                    const userData = doc.data();
+                    totalBal += Number(userData.balance || 0); 
+                    if(userData.joinDate === todayDate) { todayCount++; }
+                });
+
+                document.getElementById('admin-tot-bal').innerText = "₹" + totalBal.toFixed(2);
+                if(document.getElementById('admin-today-users')) {
+                    document.getElementById('admin-today-users').innerText = todayCount;
+                }
+
+                const histSnap = await getDocs(collection(db, "history"));
+                let rawVol = 0;
+                histSnap.forEach(doc => { rawVol += Number(doc.data().amt || 0); });
+                
+                let displayVol = rawVol - offsetVol; // Purane volume ko hide karo
+                if (displayVol < 0) displayVol = 0;
+                
+                document.getElementById('admin-api-vol').innerText = "₹" + displayVol; // Zero dikhayega
+
+            } catch(e) { console.log("Stats error: ", e); }
+        };
+
+        // 2. 🚀 VIP TAB SWITCHER ENGINE (Sab kuch ek hi engine handle karega) 🚀
+        window.showAdminTab = async (type) => {
+            const statsGrid = document.getElementById('admin-stats-grid');
+            const reqContainer = document.getElementById('admin-request-container');
+            const listTitle = document.getElementById('admin-list-title');
+            const listArea = document.getElementById('admin-requests-list');
+            const reqCount = document.getElementById('admin-req-count');
+
+            if (type === 'STATS') {
+                statsGrid.classList.remove('hidden');
+                reqContainer.classList.add('hidden');
+                window.loadAdminStats(); 
+                return;
+            }
+
+            statsGrid.classList.add('hidden');
+            reqContainer.classList.remove('hidden');
+            
+            listTitle.innerText = type === 'USERS' ? 'MANAGE ALL USERS' : `PENDING ${type}S`;
+            listArea.innerHTML = '<p class="text-center text-gray-400 py-10 animate-pulse">Fetching Data from Database...</p>';
+            reqCount.innerText = "0";
+
+            try {
+                let snap;
+                if (type === 'USERS') {
+                    snap = await getDocs(collection(db, "users"));
+                } else {
+                    const q = query(collection(db, "transactions"), where("type", "==", type), where("status", "==", "PENDING"));
+                    snap = await getDocs(q);
+                }
+
+                reqCount.innerText = snap.size;
+                listArea.innerHTML = ""; 
+
+                if (snap.empty) {
+                    listArea.innerHTML = `<div class="text-center py-10"><p class="text-gray-400">No Data Found!</p></div>`;
+                    return;
+                }
+
+                let html = "";
+                // Agar tab USERS ka hai toh top par Search Bar laga do
+                if (type === 'USERS') {
+                    html += `
+                    <div class="mb-4 sticky top-0 z-10">
+                        <input type="text" id="user-search-input" onkeyup="window.searchUsers()" placeholder="🔍 Search Mobile Number..." class="w-full bg-white border border-gray-200 p-3.5 rounded-xl text-sm font-black focus:outline-none focus:border-blue-500 shadow-sm text-slate-800 placeholder-gray-400 tracking-widest">
+                    </div>`;
+                }
+
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    
+                    if (type === 'USERS') {
+                        // VIP USERS CARD
+                        const bal = data.balance ? Number(data.balance) : 0;
+                        html += `
+                        <div class="user-card-item bg-white p-4 rounded-xl mb-3 border-l-4 border-blue-500 shadow-sm border border-gray-100" data-phone="${docSnap.id}">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-slate-800 font-black text-sm">${(data.name || 'VIP User').toUpperCase()}</p>
+                                    <p class="text-gray-400 text-[10px] font-bold">${docSnap.id}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-blue-600 font-black">₹${bal}</p>
+                                    <div class="flex gap-2 mt-2">
+                                        <button onclick="window.manualAdjust('${docSnap.id}', 'ADD')" class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded text-[10px] font-black uppercase">ADD</button>
+                                        <button onclick="window.manualAdjust('${docSnap.id}', 'CUT')" class="bg-red-50 text-red-600 px-3 py-1 rounded text-[10px] font-black uppercase">CUT</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        // VIP WITHDRAW / DEPOSIT CARD
+                        const uPhone = data.userPhone || data.phone || 'N/A';
+                        const uAmt = data.amount || 0;
+                        const uDetail = type === 'DEPOSIT' ? (data.utr || 'N/A') : (data.upi || 'N/A');
+                        const borderColor = type === 'DEPOSIT' ? 'border-green-500' : 'border-red-500';
+                        
+                        html += `
+                        <div class="bg-white p-4 rounded-xl mb-3 border-l-4 ${borderColor} shadow-sm border border-gray-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <div>
+                                    <p class="text-[10px] font-black text-gray-400 uppercase">User: ${uPhone}</p>
+                                    <p class="text-xl font-black text-slate-800">₹${uAmt}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-black ${type === 'DEPOSIT' ? 'text-green-500' : 'text-red-500'} uppercase mb-1">DETAIL: <br>${uDetail}</p>
+                                    ${type === 'WITHDRAW' ? `<button onclick="navigator.clipboard.writeText('${uDetail}'); alert('✅ UPI Copied: ${uDetail}')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded text-[9px] font-bold transition"><i class="fa-regular fa-copy"></i> Copy</button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="window.approveReq('${docSnap.id}', '${uPhone}', ${uAmt}, '${type}')" class="flex-1 bg-green-50 text-green-600 py-2 rounded-lg text-xs font-black uppercase">APPROVE</button>
+                                <button onclick="window.rejectReq('${docSnap.id}', '${uPhone}', ${uAmt}, '${type}')" class="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-xs font-black uppercase">REJECT</button>
+                            </div>
+                        </div>`;
+                    }
+                });
+                listArea.innerHTML = html; 
+
+            } catch (e) {
+                listArea.innerHTML = `<div class="text-center py-10 text-red-500">Error! Refresh the page.</div>`;
+            }
+        };
+
+        // 3. Approve Request Logic
+        window.approveReq = async (id, phone, amt, type) => {
+            if(!confirm(`Are you sure you want to APPROVE this ₹${amt} ${type}?`)) return;
+            try {
+              if(type === 'DEPOSIT') {
+            const userRef = doc(db, "users", phone);
+            const userSnap = await getDoc(userRef);
+            
+            // Asli balance nikalo aur number banao
+            let currentBal = userSnap.exists() ? (parseFloat(userSnap.data().balance) || 0) : 0;
+            let depositAmt = parseFloat(amt) || 0;
+            
+            // Safe tarike se plus karo
+            let newBal = (currentBal + depositAmt).toFixed(2);
+            
+            // Naya balance database mein daalo
+            await updateDoc(userRef, { balance: newBal });
+              }
+                
+                await updateDoc(doc(db, "transactions", id), { status: 'SUCCESS' });
+                alert("✅ Approved Successfully!");
+                
+                window.showAdminTab(type); // List refresh
+                window.sendUserBotAlert(phone, amt, "APPROVED", type);
+            } catch(e) { alert(e.message); }
+        };
+
+        // 4. Reject Request Logic
+        window.rejectReq = async (id, phone, amt, type) => {
+            if(!confirm(`Reject this ₹${amt} ${type} request?`)) return;
+            try {
+                        if(type === 'WITHDRAW') {
+            // NAYA SAFE REFUND ENGINE
+            const userRef = doc(db, "users", phone);
+            const userSnap = await getDoc(userRef);
+            
+            let currentBal = userSnap.exists() ? (parseFloat(userSnap.data().balance) || 0) : 0;
+            let refundAmt = parseFloat(amt) || 0;
+            let newBal = (currentBal + refundAmt).toFixed(2);
+            
+            await updateDoc(userRef, { balance: newBal });
+                        }
+                
+                await updateDoc(doc(db, "transactions", id), { status: 'REJECTED' });
+                alert("❌ Rejected!");
+                
+                window.showAdminTab(type); // List refresh
+                window.sendUserBotAlert(phone, amt, "REJECTED", type);
+            } catch(e) { alert(e.message); }
+        };
+
+        // 5. Manual Balance Add/Cut Engine (Safe Engine)
+        window.manualAdjust = async (phone, action) => {
+            const amt = prompt(`Enter Amount to ${action === 'ADD' ? 'Add' : 'Cut'} for user ${phone}:`);
+            if (!amt || isNaN(amt) || Number(amt) <= 0) return;
+
+            const finalAmt = Number(amt);
+            const adjustValue = action === 'ADD' ? finalAmt : -finalAmt;
+
+            try {
+        // NAYA SAFETY LOCK: Purana balance nikal kar math karenge
+        const userRef = doc(db, "users", phone);
+        const userSnap = await getDoc(userRef);
+        let currentBal = userSnap.exists() ? (parseFloat(userSnap.data().balance) || 0) : 0;
+        
+        let newBal = (currentBal + adjustValue).toFixed(2);
+        await updateDoc(userRef, { balance: newBal });
+
+                // History generate karo taaki proof rahe
+                await addDoc(collection(db, "history"), {
+                    owner: phone,
+                    amt: finalAmt,
+                    type: action === 'ADD' ? 'DEPOSIT' : 'WITHDRAW',
+                    status: 'SUCCESS',
+                    sender: action === 'ADD' ? 'Admin Bonus' : 'Admin Cut',
+                    timestamp: Date.now()
+                });
+
+                alert(`✅ ₹${finalAmt} successfully ${action === 'ADD' ? 'Added' : 'Cut'}!`);
+                window.showAdminTab('USERS'); // Panel wapas turant refresh karo
+            } catch (e) { alert("Error: " + e.message); }
+        };
+
+        // ==========================================
+// ⛔ VIP FRAUD CONTROL (BAN/UNBAN) ENGINE ⛔
+// ==========================================
+window.banUser = async () => {
+    let phoneInput = document.getElementById('fraud-phone-input').value.trim();
+    if (!phoneInput) return alert("❌ Pehle user ka phone number daalo!");
+
+    const confirmBan = confirm(`⚠️ WARNING: Kya aap sach mein ${phoneInput} ko BAN karna chahte hain? Wo bot/app use nahi kar payega!`);
+    if (!confirmBan) return;
+
+    try {
+        // DHYAN DE: Agar tere users collection mein phone number "userPhone" naam se save hota hai, toh niche "phone" ki jagah "userPhone" kar dena.
+        const q = query(collection(db, "users"), where("phone", "==", phoneInput));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return alert("❌ Ye number database mein nahi mila! Check karo.");
+        }
+
+        querySnapshot.forEach(async (docSnap) => {
+            await updateDoc(doc(db, "users", docSnap.id), {
+                isBanned: true,
+                status: "BANNED ⛔"
+            });
+        });
+
+        alert(`✅ BOOM! ${phoneInput} has been BANNED permanently.`);
+        document.getElementById('fraud-phone-input').value = ""; // Box clear karo
+        
+    } catch (error) {
+        console.error("Ban Error:", error);
+        alert("❌ Error: " + error.message);
+    }
+};
+
+window.unbanUser = async () => {
+    let phoneInput = document.getElementById('fraud-phone-input').value.trim();
+    if (!phoneInput) return alert("❌ Pehle user ka phone number daalo!");
+
+    try {
+        const q = query(collection(db, "users"), where("phone", "==", phoneInput));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return alert("❌ Ye number database mein nahi mila!");
+        }
+
+        querySnapshot.forEach(async (docSnap) => {
+            await updateDoc(doc(db, "users", docSnap.id), {
+                isBanned: false,
+                status: "ACTIVE ✅"
+            });
+        });
+
+        alert(`✅ SUCCESS! ${phoneInput} ab UNBAN ho gaya hai aur wapas use kar sakta hai.`);
+        document.getElementById('fraud-phone-input').value = ""; 
+        
+    } catch (error) {
+        console.error("Unban Error:", error);
+        alert("❌ Error: " + error.message);
+    }
+};
+
+        // ==========================================
+// 🚀 VIP DISPLAY RESET ENGINE (100% SAFE) 🚀
+// ==========================================
+window.resetApiData = async () => {
+    const confirm1 = confirm("⚠️ DASHBOARD RESET: Kya aap API Volume aur Transactions ko 0 se shuru karna chahte hain? (Users ka data safe rahega)");
+    if (!confirm1) return;
+
+    document.getElementById('admin-tot-txns').innerText = "Wiping...";
+    document.getElementById('admin-api-vol').innerText = "Wiping...";
+
+    try {
+        // 1. Abhi tak ka current load check karo
+        const transCountSnap = await getCountFromServer(collection(db, "transactions"));
+        const currentTxns = transCountSnap.data().count;
+
+        const histSnap = await getDocs(collection(db, "history"));
+        let currentVol = 0;
+        histSnap.forEach(doc => { currentVol += Number(doc.data().amt || 0); });
+
+        // 2. In purane numbers ko ek "Hidden Memory" mein save kar do (Data delete nahi hoga)
+        await setDoc(doc(db, "adminConfig", "resetMemory"), {
+            hiddenTxns: currentTxns,
+            hiddenVol: currentVol
+        }, { merge: true });
+
+        alert("✅ BOOM! Dashboard Display 0 par set ho gaya hai. Users ki history 100% safe hai!");
+        window.loadAdminStats(); // Dashboard turant refresh hoga
+
+    } catch (error) {
+        console.error("Wipe Error: ", error);
+        alert("❌ Error: " + error.message);
+    }
+};
+
+// 6. Telegram Bot Alerts (VIP FINAL ENGINE - NO POPUPS)
+window.sendUserBotAlert = async (phone, amount, status, type) => {
+    const botToken = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY"; 
+
+    try {
+        const userRef = doc(db, "users", String(phone));
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+            // Triple Engine: Har type ki spelling pakad lega
+            const chatId = userSnap.data().tgId || userSnap.data().Tgid || userSnap.data().tgid; 
+            
+            // Agar ID nahi mili toh chupchaap cancel (No annoying popups)
+            if (!chatId) return; 
+
+            let message = "";
+            
+            // 💎 VIP MESSAGE DESIGNS 💎
+            if (type === 'DEPOSIT' && status === 'APPROVED') {
+                message = `<b><tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji> KING WALLET OFFICIAL <tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji></b>\n\n<tg-emoji emoji-id='6267225207560214192'>✅</tg-emoji> <b>DEPOSIT SUCCESSFUL</b>\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6267068789146260253'>💰</tg-emoji> <b>Amount:</b> ₹${amount}\n<tg-emoji emoji-id='6267117038808870117'>🎉</tg-emoji> <b>Status:</b> Added to Wallet\n━━━━━━━━━━━━━━━\n<i>Thank you for choosing King Wallet! Keep earning.</i> <tg-emoji emoji-id='6129639980387015660'>🚀</tg-emoji>`;
+            } 
+            else if (type === 'WITHDRAW' && status === 'APPROVED') {
+                message = `<b><tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji> KING WALLET OFFICIAL <tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji></b>\n\n<tg-emoji emoji-id='6267225207560214192'>✅</tg-emoji> <b>WITHDRAWAL SUCCESS</b>\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6129731974291527294'>💸</tg-emoji> <b>Amount:</b> ₹${amount}\n<tg-emoji emoji-id='6131984280911353090'>🏦</tg-emoji> <b>Status:</b> Sent to Upi account\n━━━━━━━━━━━━━━━\n<i>Your funds have been securely transferred!</i> <tg-emoji emoji-id='6305474236383236127'>🏆</tg-emoji>`;
+            } 
+            else if (type === 'WITHDRAW' && status === 'REJECTED') {
+                message = `<b><tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji> KING WALLET OFFICIAL <tg-emoji emoji-id='6338940587193930733'>👑</tg-emoji></b>\n\n<tg-emoji emoji-id='6264989883241076562'>🚫</tg-emoji> <b>WITHDRAWAL REJECTED</b>\n━━━━━━━━━━━━━━━\n<tg-emoji emoji-id='6267068789146260253'>💰</tg-emoji> <b>Refunded:</b> ₹${amount}\n<tg-emoji emoji-id='6222095018358740369'>⚠️</tg-emoji> <b>Status:</b> Added back to Wallet\n━━━━━━━━━━━━━━━\n<i>Please check your details or contact support.</i> <tg-emoji emoji-id='6082387600599944892'>🎧</tg-emoji>`;
+            }
+
+            if (message === "") return;
+
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "HTML" })
+            });
+            // Background me console me dikhayega admin ke liye, screen pe nahi
+            console.log("✅ VIP Alert Sent!"); 
+        }
+    } catch (error) {
+        console.error("Bot Alert Error:", error);
+    }
+};
+                // --- 🚀 VIP USER SEARCH ENGINE 🚀 ---
+        window.searchUsers = () => {
+            let filter = document.getElementById('user-search-input').value.toUpperCase();
+            let cards = document.querySelectorAll('.user-card-item');
+            
+            cards.forEach(card => {
+                let phone = card.getAttribute('data-phone').toUpperCase();
+                if (phone.indexOf(filter) > -1) {
+                    card.style.display = ""; // Agar number match hua toh card dikhao
+                } else {
+                    card.style.display = "none"; // Nahi match hua toh card chhupa do
+                }
+            });
+        };
+        
+    </script>
+</body>
+</html>

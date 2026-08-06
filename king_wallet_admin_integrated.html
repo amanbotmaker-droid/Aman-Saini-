@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>King Wallet Admin - Integrated</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --gold: #c9a84c;
+      --gold2: #e8c97a;
+      --black: #080808;
+      --black2: #111;
+      --black3: #1a1a1a;
+      --border: #2a2200;
+      --text: #f5f0e0;
+      --text2: #a89060;
+      --muted: #5a4a2a;
+      --green: #10b981;
+      --red: #ef4444;
+      --orange: #f97316;
+      --sky: #38bdf8;
+      --purple: #a855f7;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--black);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* LOGIN SCREEN */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(201, 168, 76, 0.08) 0%, transparent 60%), var(--black);
+    }
+
+    .login-box {
+      background: var(--black2);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), var(--gold2), var(--gold), transparent);
+    }
+
+    .login-crown {
+      font-size: 2.5rem;
+      margin-bottom: 0.6rem;
+      filter: drop-shadow(0 0 16px rgba(201, 168, 76, 0.5));
+    }
+
+    .login-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      color: var(--gold);
+      margin-bottom: 0.2rem;
+    }
+
+    .login-sub {
+      font-size: 0.58rem;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .login-inp {
+      width: 100%;
+      padding: 0.88rem 1rem;
+      background: var(--black3);
+      border: 1.5px solid var(--border);
+      border-radius: 13px;
+      font-size: 0.9rem;
+      outline: none;
+      color: var(--text);
+      font-family: monospace;
+      text-align: center;
+      letter-spacing: 0.15em;
+      margin-bottom: 1rem;
+      transition: border 0.2s;
+    }
+
+    .login-inp:focus {
+      border-color: var(--gold);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 0.9rem;
+      background: linear-gradient(135deg, var(--gold), #a07830, var(--gold));
+      color: #000;
+      border: none;
+      border-radius: 13px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+
+    .login-btn:active {
+      transform: scale(0.97);
+    }
+
+    .login-err {
+      color: var(--red);
+      font-size: 0.72rem;
+      margin-top: 0.6rem;
+      display: none;
+    }
+
+    /* LAYOUT */
+    #main-screen {
+      display: none;
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      background: var(--black2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      z-index: 50;
+      overflow-y: auto;
+      transition: transform 0.3s;
+    }
+
+    .sb-logo {
+      padding: 1.4rem 1.2rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sb-crown {
+      font-size: 1.2rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .sb-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      color: var(--gold);
+    }
+
+    .sb-sub {
+      font-size: 0.45rem;
+      color: var(--muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .sb-nav {
+      padding: 0.75rem;
+      flex: 1;
+    }
+
+    .sb-sec {
+      font-size: 0.44rem;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 0.6rem 0.5rem 0.3rem;
+    }
+
+    .sb-link {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      color: var(--text2);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .sb-link:hover,
+    .sb-link.active {
+      background: rgba(201, 168, 76, 0.08);
+      color: var(--gold);
+    }
+
+    .sb-link i {
+      width: 16px;
+      text-align: center;
+      font-size: 0.78rem;
+    }
+
+    .sb-foot {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .sb-logout {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      color: var(--red);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      border: none;
+      background: none;
+    }
+
+    .sb-logout:hover {
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* CONTENT */
+    .content {
+      margin-left: 220px;
+      flex: 1;
+      padding: 1.5rem;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      color: var(--gold);
+    }
+
+    .badge {
+      background: var(--black3);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--text2);
+      font-family: monospace;
+    }
+
+    /* STATS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--black2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.1rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .stat-card.gold::before {
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+    }
+
+    .stat-card.green::before {
+      background: linear-gradient(90deg, var(--green), #34d399);
+    }
+
+    .stat-card.red::before {
+      background: linear-gradient(90deg, var(--red), #f87171);
+    }
+
+    .stat-card.sky::before {
+      background: linear-gradient(90deg, var(--sky), #38bdf8);
+    }
+
+    .stat-card.orange::before {
+      background: linear-gradient(90deg, var(--orange), #fbbf24);
+    }
+
+    .stat-ico {
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-card.gold .stat-ico {
+      color: var(--gold);
+    }
+
+    .stat-card.green .stat-ico {
+      color: var(--green);
+    }
+
+    .stat-card.red .stat-ico {
+      color: var(--red);
+    }
+
+    .stat-card.sky .stat-ico {
+      color: var(--sky);
+    }
+
+    .stat-card.orange .stat-ico {
+      color: var(--orange);
+    }
+
+    .stat-val {
+      font-family: monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+
+    .stat-lbl {
+      font-size: 0.5rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+    }
+
+    /* CARD */
+    .card {
+      background: var(--black2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.3), transparent);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    /* TABLE */
+    .tbl-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      font-size: 0.5rem;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      font-size: 0.7rem;
+      padding: 0.75rem 0.8rem;
+      border-bottom: 1px solid rgba(42, 34, 0, 0.4);
+      color: var(--text2);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(201, 168, 76, 0.02);
+    }
+
+    .mono {
+      font-family: monospace;
+      font-size: 0.62rem;
+    }
+
+    /* TAGS */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 0.52rem;
+      font-weight: 800;
+    }
+
+    .tag.success {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--green);
+    }
+
+    .tag.pending {
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--orange);
+    }
+
+    .tag.failed,
+    .tag.rejected {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--red);
+    }
+
+    .tag.info {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--sky);
+    }
+
+    .tag.gold {
+      background: rgba(201, 168, 76, 0.12);
+      color: var(--gold);
+    }
+
+    /* INPUTS */
+    .inp-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .inp {
+      flex: 1;
+      min-width: 130px;
+      padding: 0.65rem 0.9rem;
+      background: var(--black3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.75rem;
+      outline: none;
+      font-family: 'DM Sans', sans-serif;
+      transition: border 0.2s;
+    }
+
+    .inp:focus {
+      border-color: var(--gold);
+    }
+
+    .inp::placeholder {
+      color: var(--muted);
+    }
+
+    select.inp {
+      cursor: pointer;
+    }
+
+    textarea.inp {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    /* BUTTONS */
+    .btn {
+      padding: 0.6rem 1rem;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold), #a07830);
+      color: #000;
+    }
+
+    .btn-green {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-red {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-sm {
+      padding: 0.28rem 0.6rem;
+      font-size: 0.58rem;
+      border-radius: 7px;
+    }
+
+    /* TOAST */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--black2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem 1.2rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      z-index: 999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      max-width: 280px;
+    }
+
+    #toast.show {
+      transform: none;
+      opacity: 1;
+    }
+
+    #toast.success {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    #toast.error {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* SECTIONS */
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.open {
+        transform: none;
+      }
+
+      .content {
+        margin-left: 0;
+        padding: 1rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .mob-menu {
+        display: flex !important;
+      }
+    }
+
+    .mob-menu {
+      display: none;
+      width: 36px;
+      height: 36px;
+      background: var(--black3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text2);
+    }
+  </style>
+</head>
+<body>
+  <div id="toast"></div>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-crown">👑</div>
+      <div class="login-title">King Wallet</div>
+      <div class="login-sub">Admin Control Panel</div>
+      <input type="password" class="login-inp" id="login-inp" placeholder="••••••••••••">
+      <button class="login-btn" onclick="doLogin()">👑 Access Panel</button>
+      <div class="login-err" id="login-err">❌ Wrong credentials</div>
+    </div>
+  </div>
+
+  <!-- MAIN SCREEN -->
+  <div id="main-screen">
+    <div class="layout">
+
+      <!-- SIDEBAR -->
+      <div class="sidebar" id="sidebar">
+        <div class="sb-logo">
+          <div class="sb-crown">👑</div>
+          <div class="sb-title">King Wallet</div>
+          <div class="sb-sub">Admin Control Panel</div>
+        </div>
+        <div class="sb-nav">
+          <div class="sb-sec">Overview</div>
+          <button class="sb-link active" onclick="showSec('dashboard')"><i class="fa-solid fa-chart-pie"></i>Dashboard</button>
+          
+          <div class="sb-sec">Management</div>
+          <button class="sb-link" onclick="showSec('users')"><i class="fa-solid fa-users"></i>Users</button>
+          <button class="sb-link" onclick="showSec('transactions')"><i class="fa-solid fa-receipt"></i>Transactions</button>
+          <button class="sb-link" onclick="showSec('withdrawals')"><i class="fa-solid fa-arrow-up"></i>Withdrawals</button>
+          <button class="sb-link" onclick="showSec('deposits')"><i class="fa-solid fa-arrow-down"></i>Deposits</button>
+          
+          <div class="sb-sec">Actions</div>
+          <button class="sb-link" onclick="showSec('fraud')"><i class="fa-solid fa-shield"></i>Fraud Control</button>
+          <button class="sb-link" onclick="showSec('reset')"><i class="fa-solid fa-rotate-right"></i>Reset Display</button>
+          
+          <div class="sb-sec">System</div>
+          <button class="sb-link" onclick="showSec('logs')"><i class="fa-solid fa-scroll"></i>Activity Logs</button>
+        </div>
+        <div class="sb-foot">
+          <button class="sb-logout" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket"></i>Logout</button>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <div class="content">
+        <div class="topbar">
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <button class="mob-menu" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fa-solid fa-bars"></i></button>
+            <div class="page-title" id="page-title">👑 Dashboard</div>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <div class="badge" id="time-badge">—</div>
+            <div class="badge">🟢 Live</div>
+          </div>
+        </div>
+
+        <!-- DASHBOARD SECTION -->
+        <div class="section active" id="sec-dashboard">
+          <div class="stats-grid">
+            <div class="stat-card gold">
+              <div class="stat-ico"><i class="fa-solid fa-users"></i></div>
+              <div class="stat-val" id="s-users">—</div>
+              <div class="stat-lbl">Total Users</div>
+            </div>
+            <div class="stat-card sky">
+              <div class="stat-ico"><i class="fa-solid fa-user-plus"></i></div>
+              <div class="stat-val" id="s-today-users">—</div>
+              <div class="stat-lbl">Today Joined</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-ico"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+              <div class="stat-val" id="s-balance">—</div>
+              <div class="stat-lbl">Total Balance</div>
+            </div>
+            <div class="stat-card orange">
+              <div class="stat-ico"><i class="fa-solid fa-receipt"></i></div>
+              <div class="stat-val" id="s-txns">—</div>
+              <div class="stat-lbl">Total Txns</div>
+            </div>
+            <div class="stat-card red">
+              <div class="stat-ico"><i class="fa-solid fa-server"></i></div>
+              <div class="stat-val" id="s-api-vol">—</div>
+              <div class="stat-lbl">API Volume</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Recent Transactions</div>
+              <button class="btn btn-gold btn-sm" onclick="showSec('transactions')">View All</button>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Txn ID</th>
+                    <th>User</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-txns">
+                  <tr>
+                    <td colspan="6" style="text-align:center;color:var(--muted)">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- USERS SECTION -->
+        <div class="section" id="sec-users">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">All Users</div>
+              <div class="badge" id="users-count">—</div>
+            </div>
+            <div class="inp-row">
+              <input class="inp" id="user-search" placeholder="Search by phone..." oninput="searchUsers()">
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Phone</th>
+                    <th>Balance</th>
+                    <th>Joined</th>
+                    <th>Telegram ID</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table">
+                  <tr>
+                    <td colspan="5" style="text-align:center;color:var(--muted)">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TRANSACTIONS SECTION -->
+        <div class="section" id="sec-transactions">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">All Transactions</div>
+              <div class="badge" id="txns-count">—</div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Txn ID</th>
+                    <th>User</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="txns-table">
+                  <tr>
+                    <td colspan="6" style="text-align:center;color:var(--muted)">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- WITHDRAWALS SECTION -->
+        <div class="section" id="sec-withdrawals">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Pending Withdrawals</div>
+              <div class="badge" id="with-count">—</div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Txn ID</th>
+                    <th>User Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="with-table">
+                  <tr>
+                    <td colspan="6" style="text-align:center;color:var(--muted)">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- DEPOSITS SECTION -->
+        <div class="section" id="sec-deposits">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Pending Deposits</div>
+              <div class="badge" id="dep-count">—</div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Txn ID</th>
+                    <th>User Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="dep-table">
+                  <tr>
+                    <td colspan="6" style="text-align:center;color:var(--muted)">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- FRAUD CONTROL SECTION -->
+        <div class="section" id="sec-fraud">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">🛡️ Fraud Control Engine</div>
+            </div>
+            <div style="background:var(--black3);border:1px solid var(--border);border-radius:12px;padding:1rem">
+              <div style="font-weight:700;font-size:0.8rem;margin-bottom:0.75rem;color:var(--red)">Ban or Unban Users</div>
+              <div class="inp-row">
+                <input class="inp" id="fraud-phone" placeholder="Enter user phone number">
+              </div>
+              <div class="inp-row">
+                <button class="btn btn-red" onclick="banUser()" style="flex:1">🚫 Ban User</button>
+                <button class="btn btn-green" onclick="unbanUser()" style="flex:1">✅ Unban User</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESET DISPLAY SECTION -->
+        <div class="section" id="sec-reset">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">⚠️ Reset Display to 0</div>
+            </div>
+            <div style="background:var(--black3);border:1px solid var(--border);border-radius:12px;padding:1rem">
+              <div style="font-size:0.75rem;color:var(--muted);margin-bottom:1rem">This will reset the dashboard display to 0. All user data remains safe and unchanged.</div>
+              <button class="btn btn-red" onclick="resetDisplay()" style="width:100%">🔄 Reset Display</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOGS SECTION -->
+        <div class="section" id="sec-logs">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Activity Logs</div>
+              <div class="badge" id="logs-count">—</div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-table">
+                  <tr>
+                    <td colspan="4" style="text-align:center;color:var(--muted)">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, query, where, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyAw6aKP8je-DzvengJ-ffxtez6xZFpQFn4",
+      authDomain: "king-wallet-49888.firebaseapp.com",
+      projectId: "king-wallet-49888",
+      storageBucket: "king-wallet-49888.firebasestorage.app",
+      messagingSenderId: "698310935797",
+      appId: "1:698310935797:web:85e03b49237225a7b371bc",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window.db = db;
+
+    // TELEGRAM BOT CONFIG
+    const BOT_TOKEN = "8581810453:AAHyYOYyuadAH-Lv26zv7q7QgTBTeoy4SmY";
+    const ADMIN_PIN = "9770";
+
+    // UTILITIES
+    function toast(msg, type = 'success') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = `show ${type}`;
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    function fmt(date) {
+      if (!date) return '—';
+      return new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: '2-digit' });
+    }
+
+    // AUTH
+    window.doLogin = () => {
+      const pwd = document.getElementById('login-inp').value;
+      if (pwd === ADMIN_PIN) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-screen').style.display = 'block';
+        loadStats();
+        loadUsers();
+        loadTxns();
+        loadWithdrawals();
+        loadDeposits();
+        updateTime();
+        setInterval(updateTime, 1000);
+      } else {
+        document.getElementById('login-err').style.display = 'block';
+        setTimeout(() => {
+          document.getElementById('login-err').style.display = 'none';
+        }, 2000);
+      }
+    };
+
+    window.doLogout = () => {
+      document.getElementById('main-screen').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('login-inp').value = '';
+    };
+
+    // NAVIGATION
+    window.showSec = (sec) => {
+      document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+      document.getElementById('sec-' + sec).classList.add('active');
+      document.querySelectorAll('.sb-link').forEach(el => el.classList.remove('active'));
+      event.target.closest('.sb-link').classList.add('active');
+      
+      const titles = {
+        dashboard: '👑 Dashboard',
+        users: '👥 Users',
+        transactions: '📋 Transactions',
+        withdrawals: '⬆️ Withdrawals',
+        deposits: '⬇️ Deposits',
+        fraud: '🛡️ Fraud Control',
+        reset: '⚠️ Reset Display',
+        logs: '📜 Activity Logs'
+      };
+      document.getElementById('page-title').textContent = titles[sec] || '👑 ' + sec;
+      document.getElementById('sidebar').classList.remove('open');
+    };
+
+    function updateTime() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('time-badge').textContent = time;
+    }
+
+    // DASHBOARD STATS
+    window.loadStats = async () => {
+      try {
+        let offsetTxns = 0;
+        let offsetVol = 0;
+        const memorySnap = await getDoc(doc(db, "adminConfig", "resetMemory"));
+        if (memorySnap.exists()) {
+          offsetTxns = memorySnap.data().hiddenTxns || 0;
+          offsetVol = memorySnap.data().hiddenVol || 0;
+        }
+
+        const usersCol = collection(db, "users");
+        const transCol = collection(db, "transactions");
+
+        const userCountSnap = await getCountFromServer(usersCol);
+        const transCountSnap = await getCountFromServer(transCol);
+
+        let rawTxns = transCountSnap.data().count;
+        let displayTxns = rawTxns - offsetTxns;
+        if (displayTxns < 0) displayTxns = 0;
+
+        document.getElementById('s-users').textContent = userCountSnap.data().count;
+        document.getElementById('s-txns').textContent = displayTxns;
+
+        const userSnap = await getDocs(usersCol);
+        let todayCount = 0;
+        let todayDate = new Date().toISOString().split('T')[0];
+        let totalBal = 0;
+
+        userSnap.forEach(doc => {
+          const userData = doc.data();
+          totalBal += Number(userData.balance || 0);
+          if (userData.joinDate === todayDate) {
+            todayCount++;
+          }
+        });
+
+        document.getElementById('s-balance').textContent = "₹" + totalBal.toFixed(2);
+        document.getElementById('s-today-users').textContent = todayCount;
+
+        const histSnap = await getDocs(collection(db, "history"));
+        let rawVol = 0;
+        histSnap.forEach(doc => {
+          rawVol += Number(doc.data().amt || 0);
+        });
+        let displayVol = rawVol - offsetVol;
+        if (displayVol < 0) displayVol = 0;
+        document.getElementById('s-api-vol').textContent = "₹" + displayVol.toFixed(2);
+
+        // Load recent transactions
+        const recentTxns = [];
+        userSnap.forEach(doc => {
+          recentTxns.push({
+            id: doc.id,
+            phone: doc.data().phone,
+            amount: doc.data().balance,
+            time: doc.data().joinDate
+          });
+        });
+        document.getElementById('recent-txns').innerHTML = recentTxns.slice(0, 5).map(t => `
+          <tr>
+            <td class="mono">TXN${t.id.slice(0, 6)}</td>
+            <td>${t.phone}</td>
+            <td style="color:var(--green);font-family:monospace">₹${t.amount}</td>
+            <td><span class="tag info">transfer</span></td>
+            <td><span class="tag success">success</span></td>
+            <td style="font-size:0.6rem">${fmt(t.time)}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No data</td></tr>';
+      } catch (e) {
+        console.error("Stats Error:", e);
+        toast("Error loading stats", "error");
+      }
+    };
+
+    // USERS
+    window.loadUsers = async () => {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        document.getElementById('users-count').textContent = usersSnap.size + ' users';
+        document.getElementById('users-table').innerHTML = Array.from(usersSnap.docs).map(doc => {
+          const data = doc.data();
+          return `
+            <tr>
+              <td class="mono">${data.phone}</td>
+              <td style="color:var(--green);font-family:monospace">₹${data.balance || 0}</td>
+              <td style="font-size:0.6rem">${fmt(data.joinDate)}</td>
+              <td class="mono">${data.tgId || data.Tgid || data.tgid || '—'}</td>
+              <td><span class="tag success">Active</span></td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No users</td></tr>';
+      } catch (e) {
+        console.error("Users Error:", e);
+      }
+    };
+
+    window.searchUsers = () => {
+      const query = document.getElementById('user-search').value.toLowerCase();
+      const rows = document.querySelectorAll('#users-table tr');
+      rows.forEach(row => {
+        const phone = row.querySelector('.mono')?.textContent.toLowerCase() || '';
+        row.style.display = phone.includes(query) ? '' : 'none';
+      });
+    };
+
+    // TRANSACTIONS
+    window.loadTxns = async () => {
+      try {
+        const transSnap = await getDocs(collection(db, "transactions"));
+        document.getElementById('txns-count').textContent = transSnap.size + ' transactions';
+        document.getElementById('txns-table').innerHTML = Array.from(transSnap.docs).map(doc => {
+          const data = doc.data();
+          return `
+            <tr>
+              <td class="mono">${doc.id}</td>
+              <td>${data.phone}</td>
+              <td style="color:var(--green);font-family:monospace">₹${data.amount || 0}</td>
+              <td><span class="tag info">${data.type || 'transfer'}</span></td>
+              <td><span class="tag ${data.status || 'success'}">${data.status || 'success'}</span></td>
+              <td style="font-size:0.6rem">${fmt(data.time)}</td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No transactions</td></tr>';
+      } catch (e) {
+        console.error("Transactions Error:", e);
+      }
+    };
+
+    // WITHDRAWALS
+    window.loadWithdrawals = async () => {
+      try {
+        const q = query(collection(db, "withdrawals"), where("status", "==", "pending"));
+        const withSnap = await getDocs(q);
+        document.getElementById('with-count').textContent = withSnap.size + ' pending';
+        document.getElementById('with-table').innerHTML = Array.from(withSnap.docs).map(doc => {
+          const data = doc.data();
+          return `
+            <tr>
+              <td class="mono">${doc.id}</td>
+              <td class="mono">${data.phone}</td>
+              <td style="color:var(--orange);font-family:monospace">₹${data.amount || 0}</td>
+              <td><span class="tag pending">${data.status}</span></td>
+              <td style="font-size:0.6rem">${fmt(data.time)}</td>
+              <td>
+                <button class="btn btn-green btn-sm" onclick="approveWithdrawal('${doc.id}', '${data.phone}', ${data.amount})">✅</button>
+                <button class="btn btn-red btn-sm" onclick="rejectWithdrawal('${doc.id}', '${data.phone}', ${data.amount})">❌</button>
+              </td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No pending withdrawals</td></tr>';
+      } catch (e) {
+        console.error("Withdrawals Error:", e);
+      }
+    };
+
+    window.approveWithdrawal = async (txId, phone, amount) => {
+      if (!confirm(`Approve ₹${amount} withdrawal for ${phone}?`)) return;
+      try {
+        await updateDoc(doc(db, "withdrawals", txId), { status: "approved" });
+        await sendUserBotAlert(phone, amount, "APPROVED", "WITHDRAW");
+        toast("✅ Withdrawal approved!");
+        loadWithdrawals();
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    window.rejectWithdrawal = async (txId, phone, amount) => {
+      if (!confirm(`Reject ₹${amount} withdrawal for ${phone}?`)) return;
+      try {
+        await updateDoc(doc(db, "withdrawals", txId), { status: "rejected" });
+        await updateDoc(doc(db, "users", phone), { balance: increment(amount) });
+        await sendUserBotAlert(phone, amount, "REJECTED", "WITHDRAW");
+        toast("❌ Withdrawal rejected!");
+        loadWithdrawals();
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    // DEPOSITS
+    window.loadDeposits = async () => {
+      try {
+        const q = query(collection(db, "deposits"), where("status", "==", "pending"));
+        const depSnap = await getDocs(q);
+        document.getElementById('dep-count').textContent = depSnap.size + ' pending';
+        document.getElementById('dep-table').innerHTML = Array.from(depSnap.docs).map(doc => {
+          const data = doc.data();
+          return `
+            <tr>
+              <td class="mono">${doc.id}</td>
+              <td class="mono">${data.phone}</td>
+              <td style="color:var(--green);font-family:monospace">₹${data.amount || 0}</td>
+              <td><span class="tag pending">${data.status}</span></td>
+              <td style="font-size:0.6rem">${fmt(data.time)}</td>
+              <td>
+                <button class="btn btn-green btn-sm" onclick="approveDeposit('${doc.id}', '${data.phone}', ${data.amount})">✅</button>
+                <button class="btn btn-red btn-sm" onclick="rejectDeposit('${doc.id}', '${data.phone}', ${data.amount})">❌</button>
+              </td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No pending deposits</td></tr>';
+      } catch (e) {
+        console.error("Deposits Error:", e);
+      }
+    };
+
+    window.approveDeposit = async (txId, phone, amount) => {
+      if (!confirm(`Approve ₹${amount} deposit for ${phone}?`)) return;
+      try {
+        await updateDoc(doc(db, "deposits", txId), { status: "approved" });
+        await updateDoc(doc(db, "users", phone), { balance: increment(amount) });
+        await sendUserBotAlert(phone, amount, "APPROVED", "DEPOSIT");
+        toast("✅ Deposit approved!");
+        loadDeposits();
+        loadStats();
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    window.rejectDeposit = async (txId, phone, amount) => {
+      if (!confirm(`Reject ₹${amount} deposit for ${phone}?`)) return;
+      try {
+        await updateDoc(doc(db, "deposits", txId), { status: "rejected" });
+        await sendUserBotAlert(phone, amount, "REJECTED", "DEPOSIT");
+        toast("❌ Deposit rejected!");
+        loadDeposits();
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    // FRAUD CONTROL
+    window.banUser = async () => {
+      const phone = document.getElementById('fraud-phone').value.trim();
+      if (!phone) return toast('Phone required', 'error');
+      try {
+        await updateDoc(doc(db, "users", phone), { banned: true });
+        toast("🚫 User banned!");
+        document.getElementById('fraud-phone').value = '';
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    window.unbanUser = async () => {
+      const phone = document.getElementById('fraud-phone').value.trim();
+      if (!phone) return toast('Phone required', 'error');
+      try {
+        await updateDoc(doc(db, "users", phone), { banned: false });
+        toast("✅ User unbanned!");
+        document.getElementById('fraud-phone').value = '';
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    // RESET DISPLAY
+    window.resetDisplay = async () => {
+      if (!confirm('Reset display to 0? Data remains safe.')) return;
+      try {
+        const transCountSnap = await getCountFromServer(collection(db, "transactions"));
+        const currentTxns = transCountSnap.data().count;
+
+        const histSnap = await getDocs(collection(db, "history"));
+        let currentVol = 0;
+        histSnap.forEach(doc => {
+          currentVol += Number(doc.data().amt || 0);
+        });
+
+        await setDoc(doc(db, "adminConfig", "resetMemory"), {
+          hiddenTxns: currentTxns,
+          hiddenVol: currentVol
+        }, { merge: true });
+
+        toast("✅ Display reset to 0!");
+        loadStats();
+      } catch (e) {
+        toast("Error: " + e.message, "error");
+      }
+    };
+
+    // TELEGRAM BOT ALERTS
+    window.sendUserBotAlert = async (phone, amount, status, type) => {
+      try {
+        const userRef = doc(db, "users", String(phone));
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const chatId = userSnap.data().tgId || userSnap.data().Tgid || userSnap.data().tgid;
+          if (!chatId) return;
+
+          let message = "";
+          if (type === 'DEPOSIT' && status === 'APPROVED') {
+            message = `<b>👑 KING WALLET OFFICIAL 👑</b>\n\n✅ <b>DEPOSIT SUCCESSFUL</b>\n━━━━━━━━━━━━━━━\n💰 <b>Amount:</b> ₹${amount}\n🎉 <b>Status:</b> Added to Wallet\n━━━━━━━━━━━━━━━\n<i>Thank you for choosing King Wallet!</i>`;
+          } else if (type === 'WITHDRAW' && status === 'APPROVED') {
+            message = `<b>👑 KING WALLET OFFICIAL 👑</b>\n\n✅ <b>WITHDRAWAL SUCCESS</b>\n━━━━━━━━━━━━━━━\n💸 <b>Amount:</b> ₹${amount}\n🏦 <b>Status:</b> Sent to UPI account\n━━━━━━━━━━━━━━━\n<i>Your funds have been securely transferred!</i>`;
+          } else if (type === 'WITHDRAW' && status === 'REJECTED') {
+            message = `<b>👑 KING WALLET OFFICIAL 👑</b>\n\n🚫 <b>WITHDRAWAL REJECTED</b>\n━━━━━━━━━━━━━━━\n💰 <b>Refunded:</b> ₹${amount}\n⚠️ <b>Status:</b> Added back to Wallet\n━━━━━━━━━━━━━━━\n<i>Please check your details or contact support.</i>`;
+          }
+
+          if (message) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+            await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "HTML" })
+            });
+            console.log("✅ Bot alert sent to " + phone);
+          }
+        }
+      } catch (e) {
+        console.error("Bot Alert Error:", e);
+      }
+    };
+
+    // INIT
+    window.addEventListener('load', () => {
+      updateTime();
+    });
+  </script>
+</body>
+</html>

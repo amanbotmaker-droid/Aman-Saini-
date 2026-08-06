@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History - King Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #050505; color: white; font-family: sans-serif; }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        .gold { color: #f59e0b; }
+    </style>
+</head>
+<body class="flex justify-center p-4">
+
+    <div class="w-full max-w-md space-y-6">
+        <div class="flex items-center justify-between border-b border-white/5 pb-4">
+            <h1 class="text-sm font-black gold uppercase tracking-widest italic">Transaction History</h1>
+            <button onclick="window.location.href='index.html'" class="text-[10px] gold uppercase font-bold border border-yellow-500/20 px-3 py-1 rounded-lg">Back</button>
+        </div>
+
+        <div id="history-container" class="space-y-3">
+            <p class="text-center text-[10px] text-gray-500 py-10">Fetching Transactions...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // --- TERA FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw6aKP8je-DzvengJ-ffxtez6xZFpQFn4",
+  authDomain: "king-wallet-49888.firebaseapp.com",
+  projectId: "king-wallet-49888",
+  storageBucket: "king-wallet-49888.firebasestorage.app",
+  messagingSenderId: "698310935797",
+  appId: "1:698310935797:web:85e03b49237225a7b371bc",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const userPh = localStorage.getItem('userPhone');
+
+        if(!userPh) {
+            window.location.href = 'login.html';
+        }
+
+        // --- REAL-TIME HISTORY FETCH ---
+        // 'transactions' collection check kar raha hai (Jo tere SS mein tha)
+        const q = query(collection(db, "transactions"), where("userPhone", "==", userPh));
+
+        onSnapshot(q, (snapshot) => {
+            const container = document.getElementById('history-container');
+            container.innerHTML = "";
+
+            if (snapshot.empty) {
+                container.innerHTML = `<p class="text-center text-[10px] text-gray-600 uppercase py-10">No History Found</p>`;
+                return;
+            }
+
+            let allDocs = [];
+            snapshot.forEach(doc => allDocs.push(doc.data()));
+
+            // Latest upar dikhane ke liye sort (agar timestamp hai)
+            allDocs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            allDocs.forEach(data => {
+                const statusColor = data.status === "SUCCESS" ? "text-green-500" : (data.status === "PENDING" ? "text-yellow-500" : "text-red-500");
+                const typeIcon = data.type === "DEPOSIT" ? "fa-arrow-down" : "fa-arrow-up";
+
+                container.innerHTML += `
+                    <div class="glass p-4 rounded-2xl border-l-2 ${data.status === 'PENDING' ? 'border-yellow-500/50' : 'border-green-500/50'}">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 bg-white/5 rounded-full flex items-center justify-center gold text-[10px]">
+                                    <i class="fa-solid ${typeIcon}"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] font-black gold italic">₹${data.amount}</p>
+                                    <p class="text-[8px] text-gray-500 uppercase font-bold">${data.date || 'No Date'}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[9px] font-black uppercase ${statusColor}">${data.status}</p>
+                                <p class="text-[7px] text-gray-600 mt-1 uppercase font-bold">UTR: ${data.utr || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
